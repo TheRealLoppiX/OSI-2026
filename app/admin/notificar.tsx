@@ -11,9 +11,10 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../src/services/supabase";
-import { Colors } from "../../src/styles/colors";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function EnviarNotificacao() {
+  const { colors } = useTheme();
   const [titulo, setTitulo] = useState("Comunicado OSI");
   const [mensagem, setMensagem] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,18 +24,11 @@ export default function EnviarNotificacao() {
 
     setLoading(true);
     try {
-      // Inserção no banco
       const { error } = await supabase.from("notificacoes").insert([
-        {
-          titulo: titulo.trim(),
-          mensagem: mensagem.trim(),
-          lida: false,
-        },
+        { titulo: titulo.trim(), mensagem: mensagem.trim(), lida: false },
       ]);
 
       if (error) {
-        // Se o banco retornar erro, ele cai aqui
-        console.error("Erro Supabase:", error);
         Alert.alert("Erro ao enviar", error.message);
       } else {
         Alert.alert("Sucesso", "Alerta enviado para todos os alunos!");
@@ -48,37 +42,37 @@ export default function EnviarNotificacao() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Disparar Alerta</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Disparar Alerta</Text>
       </View>
 
       <View style={styles.form}>
-        <Text style={styles.label}>Título do Aviso</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Título do Aviso</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
           value={titulo}
           onChangeText={setTitulo}
           placeholder="Ex: Mudança de Horário"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={colors.textLight}
         />
 
-        <Text style={styles.label}>Mensagem para os Alunos</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Mensagem para os Alunos</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          style={[styles.input, styles.textArea, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
           multiline
           numberOfLines={6}
           value={mensagem}
           onChangeText={setMensagem}
           placeholder="Digite aqui o aviso importante..."
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={colors.textLight}
         />
 
         <TouchableOpacity
-          style={[styles.btn, loading && { opacity: 0.7 }]}
+          style={[styles.btn, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]}
           onPress={handleSend}
           disabled={loading}
         >
@@ -94,41 +88,20 @@ export default function EnviarNotificacao() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   header: {
     paddingTop: 60,
     padding: 25,
     flexDirection: "row",
     alignItems: "center",
     gap: 15,
-    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
   },
-  title: { fontSize: 20, fontWeight: "bold", color: Colors.text },
+  title: { fontSize: 20, fontWeight: "bold" },
   form: { padding: 25 },
-  label: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: Colors.text,
-    marginBottom: 8,
-    marginTop: 15,
-  },
-  input: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    color: "#000",
-  },
+  label: { fontSize: 14, fontWeight: "bold", marginBottom: 8, marginTop: 15 },
+  input: { padding: 15, borderRadius: 12, borderWidth: 1 },
   textArea: { height: 150, textAlignVertical: "top" },
-  btn: {
-    backgroundColor: Colors.primary,
-    padding: 18,
-    borderRadius: 15,
-    alignItems: "center",
-    marginTop: 30,
-  },
+  btn: { padding: 18, borderRadius: 15, alignItems: "center", marginTop: 30 },
   btnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
 });

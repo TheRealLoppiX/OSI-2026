@@ -16,13 +16,12 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../../src/services/supabase";
-import { Colors } from "../../src/styles/colors";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function ListaUsuarios() {
+  const { colors } = useTheme();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Estados para Edição
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [editNome, setEditNome] = useState("");
   const [editUser, setEditUser] = useState("");
@@ -32,47 +31,29 @@ export default function ListaUsuarios() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("*")
-      .order("usuario");
+    const { data, error } = await supabase.from("usuarios").select("*").order("usuario");
     if (!error) setUsers(data || []);
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useEffect(() => { fetchUsers(); }, []);
 
   const openEdit = (user: any) => {
     setSelectedUser(user);
     setEditNome(user.nome || "");
     setEditUser(user.usuario);
-    setNovaSenha(""); // Sempre começa vazio por segurança
+    setNovaSenha("");
     setModalVisible(true);
   };
 
   const handleUpdate = async () => {
-    if (!editUser)
-      return Alert.alert("Erro", "O login (username) é obrigatório.");
+    if (!editUser) return Alert.alert("Erro", "O login (username) é obrigatório.");
 
     setUpdating(true);
+    const updatePayload: any = { nome: editNome, usuario: editUser.toLowerCase().trim() };
+    if (novaSenha.trim().length > 0) updatePayload.senha = novaSenha;
 
-    const updatePayload: any = {
-      nome: editNome,
-      usuario: editUser.toLowerCase().trim(),
-    };
-
-    // Só altera a senha no banco se o professor digitar algo no campo
-    if (novaSenha.trim().length > 0) {
-      updatePayload.senha = novaSenha;
-    }
-
-    const { error } = await supabase
-      .from("usuarios")
-      .update(updatePayload)
-      .eq("id", selectedUser.id);
-
+    const { error } = await supabase.from("usuarios").update(updatePayload).eq("id", selectedUser.id);
     setUpdating(false);
 
     if (!error) {
@@ -85,9 +66,8 @@ export default function ListaUsuarios() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
@@ -98,11 +78,7 @@ export default function ListaUsuarios() {
       </View>
 
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color={Colors.primary}
-          style={{ marginTop: 50 }}
-        />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
       ) : (
         <FlatList
           data={users}
@@ -110,24 +86,18 @@ export default function ListaUsuarios() {
           contentContainerStyle={{ padding: 20 }}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.userCard}
+              style={[styles.userCard, { backgroundColor: colors.card }]}
               onPress={() => openEdit(item)}
             >
               <Image
-                source={{
-                  uri:
-                    item.avatar_url ||
-                    `https://api.dicebear.com/7.x/avataaars/png?seed=${item.usuario}`,
-                }}
-                style={styles.avatar}
+                source={{ uri: item.avatar_url || `https://api.dicebear.com/7.x/avataaars/png?seed=${item.usuario}` }}
+                style={[styles.avatar, { borderColor: colors.border }]}
               />
               <View style={{ flex: 1 }}>
-                <Text style={styles.userName}>{item.usuario}</Text>
-                <Text style={styles.userSchool}>
-                  {item.instituicao || "Estudante"}
-                </Text>
+                <Text style={[styles.userName, { color: colors.text }]}>{item.usuario}</Text>
+                <Text style={[styles.userSchool, { color: colors.textLight }]}>{item.instituicao || "Estudante"}</Text>
               </View>
-              <View style={styles.editIcon}>
+              <View style={[styles.editIcon, { backgroundColor: colors.primary }]}>
                 <Ionicons name="pencil" size={16} color="#fff" />
               </View>
             </TouchableOpacity>
@@ -135,78 +105,66 @@ export default function ListaUsuarios() {
         />
       )}
 
-      {/* MODAL DE EDIÇÃO PROFISSIONAL */}
       <Modal visible={modalVisible} animationType="fade" transparent>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.modalOverlay}
         >
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Gerenciar Aluno</Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Gerenciar Aluno</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color={Colors.textLight} />
+                <Ionicons name="close" size={24} color={colors.textLight} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.infoText}>
-              ID do Aluno:{" "}
-              <Text style={{ fontWeight: "bold" }}>
-                {selectedUser?.id.substring(0, 8)}...
-              </Text>
+            <Text style={[styles.infoText, { color: colors.textLight }]}>
+              ID do Aluno: <Text style={{ fontWeight: "bold" }}>{selectedUser?.id.substring(0, 8)}...</Text>
             </Text>
 
-            <Text style={styles.label}>Nome Completo</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Nome Completo</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
               value={editNome}
               onChangeText={setEditNome}
               placeholder="Nome do Aluno"
+              placeholderTextColor={colors.textLight}
             />
 
-            <Text style={styles.label}>Login / Usuário</Text>
+            <Text style={[styles.label, { color: colors.text }]}>Login / Usuário</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
               value={editUser}
               onChangeText={setEditUser}
               autoCapitalize="none"
             />
 
-            <Text style={styles.label}>
-              Redefinir Senha (Deixe vazio para manter)
-            </Text>
+            <Text style={[styles.label, { color: colors.text }]}>Redefinir Senha (Deixe vazio para manter)</Text>
             <TextInput
-              style={[
-                styles.input,
-                { borderColor: novaSenha ? Colors.primary : "#E2E8F0" },
-              ]}
+              style={[styles.input, { backgroundColor: colors.inputBg, borderColor: novaSenha ? colors.primary : colors.border, color: colors.text }]}
               value={novaSenha}
               onChangeText={setNovaSenha}
               placeholder="Digite a nova senha aqui"
-              secureTextEntry={true}
+              placeholderTextColor={colors.textLight}
+              secureTextEntry
             />
 
             <View style={styles.footerRow}>
               <TouchableOpacity
-                style={[styles.btn, { backgroundColor: "#F1F5F9" }]}
+                style={[styles.btn, { backgroundColor: colors.border }]}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={{ color: Colors.text, fontWeight: "600" }}>
-                  Cancelar
-                </Text>
+                <Text style={{ color: colors.text, fontWeight: "600" }}>Cancelar</Text>
               </TouchableOpacity>
-
               <TouchableOpacity
-                style={[styles.btn, { backgroundColor: Colors.primary }]}
+                style={[styles.btn, { backgroundColor: colors.primary }]}
                 onPress={handleUpdate}
                 disabled={updating}
               >
                 {updating ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Atualizar
-                  </Text>
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>Atualizar</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -218,18 +176,16 @@ export default function ListaUsuarios() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   header: {
     paddingTop: 60,
     padding: 25,
-    backgroundColor: Colors.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   title: { fontSize: 20, fontWeight: "bold", color: "#fff" },
   userCard: {
-    backgroundColor: "#fff",
     padding: 16,
     borderRadius: 20,
     marginBottom: 12,
@@ -238,65 +194,17 @@ const styles = StyleSheet.create({
     gap: 15,
     elevation: 2,
   },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#EEF2FF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  editIcon: {
-    backgroundColor: Colors.primary,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  userName: { fontSize: 16, fontWeight: "bold", color: Colors.text },
-  userSchool: { fontSize: 12, color: Colors.textLight },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    padding: 25,
-    borderRadius: 28,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 15,
-  },
-  modalTitle: { fontSize: 18, fontWeight: "bold", color: Colors.text },
-  infoText: { fontSize: 12, color: Colors.textLight, marginBottom: 10 },
-  label: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: Colors.text,
-    marginTop: 15,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: "#F8FAFC",
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    color: Colors.text,
-  },
+  avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 1 },
+  editIcon: { width: 28, height: 28, borderRadius: 14, justifyContent: "center", alignItems: "center" },
+  userName: { fontSize: 16, fontWeight: "bold" },
+  userSchool: { fontSize: 12 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", padding: 20 },
+  modalContent: { padding: 25, borderRadius: 28, elevation: 10 },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
+  modalTitle: { fontSize: 18, fontWeight: "bold" },
+  infoText: { fontSize: 12, marginBottom: 10 },
+  label: { fontSize: 13, fontWeight: "bold", marginTop: 15, marginBottom: 6 },
+  input: { padding: 14, borderRadius: 12, borderWidth: 1 },
   footerRow: { flexDirection: "row", gap: 12, marginTop: 30 },
-  btn: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  btn: { flex: 1, padding: 16, borderRadius: 15, alignItems: "center", justifyContent: "center" },
 });

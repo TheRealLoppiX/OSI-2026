@@ -1,18 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { Colors } from "../../src/styles/colors";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function TabsLayout() {
+  const { colors } = useTheme();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary,
+        tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: "#94A3B8",
         tabBarStyle: {
-          backgroundColor: "#fff",
+          backgroundColor: colors.card,
           borderTopWidth: 1,
-          borderTopColor: "#F1F5F9",
+          borderTopColor: colors.border,
           height: 65,
           paddingBottom: 10,
           paddingTop: 6,
@@ -68,7 +70,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* Telas dentro de (tabs) que não devem aparecer na barra */}
       <Tabs.Screen name="simulado" options={{ href: null }} />
     </Tabs>
   );

@@ -14,11 +14,12 @@ import {
 } from "react-native";
 import { aiService } from "../../src/services/aiService";
 import { authService } from "../../src/services/auth";
-import { Colors } from "../../src/styles/colors";
+import { useTheme } from "../../src/context/ThemeContext";
 
 const UMA_HORA_MS = 60 * 60 * 1000;
 
 export default function GeradorSimulado() {
+  const { colors } = useTheme();
   const [tema, setTema] = useState("");
   const [nQts, setNQts] = useState(5);
   const [loading, setLoading] = useState(false);
@@ -64,22 +65,15 @@ export default function GeradorSimulado() {
     setLoading(true);
     try {
       const questoesGeradas = await aiService.gerarQuestoesIA(tema, nQts);
-
       await AsyncStorage.setItem(key, String(Date.now()));
       setCooldownMin(60);
 
       router.push({
         pathname: "/simulado",
-        params: {
-          dadosIA: JSON.stringify(questoesGeradas),
-          titulo: `Treino IA: ${tema}`,
-        },
+        params: { dadosIA: JSON.stringify(questoesGeradas), titulo: `Treino IA: ${tema}` },
       } as any);
     } catch (error) {
-      Alert.alert(
-        "Erro",
-        "O limite de requisições gratuitas foi atingido. Tente em 1 minuto."
-      );
+      Alert.alert("Erro", "O limite de requisições gratuitas foi atingido. Tente em 1 minuto.");
     } finally {
       setLoading(false);
     }
@@ -87,57 +81,55 @@ export default function GeradorSimulado() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.bg }]}
       contentContainerStyle={{ paddingBottom: 40 }}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.bg }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Simulado IA</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Simulado IA</Text>
       </View>
 
       <View style={styles.content}>
         <View style={styles.aiBanner}>
           <MaterialCommunityIcons name="auto-fix" size={50} color="#fff" />
           <Text style={styles.bannerTitle}>OSIA</Text>
-          <Text style={styles.bannerSub}>
-            Especifique para OSIA como você quer o Simulado
-          </Text>
+          <Text style={styles.bannerSub}>Especifique para OSIA como você quer o Simulado</Text>
         </View>
 
         {cooldownMin > 0 && (
           <View style={styles.cooldownBanner}>
             <Ionicons name="time-outline" size={20} color="#F59E0B" />
             <Text style={styles.cooldownText}>
-              Próximo simulado disponível em <Text style={{ fontWeight: "bold" }}>{cooldownMin} min</Text>
+              Próximo simulado disponível em{" "}
+              <Text style={{ fontWeight: "bold" }}>{cooldownMin} min</Text>
             </Text>
           </View>
         )}
 
-        <Text style={styles.label}>Tema do Simulado</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Tema do Simulado</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text }]}
           placeholder="Ex: Redes, Python, Hardware..."
           value={tema}
           onChangeText={setTema}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={colors.textLight}
         />
 
-        <Text style={styles.label}>Quantidade de Questões ({nQts})</Text>
+        <Text style={[styles.label, { color: colors.text }]}>Quantidade de Questões ({nQts})</Text>
         <View style={styles.qtsSelector}>
           {[3, 5, 10, 15].map((num) => (
             <TouchableOpacity
               key={num}
               style={[
                 styles.qtsBtn,
-                nQts === num && { backgroundColor: Colors.primary },
+                { backgroundColor: colors.card },
+                nQts === num && { backgroundColor: colors.primary },
               ]}
               onPress={() => setNQts(num)}
             >
-              <Text
-                style={[styles.qtsBtnText, nQts === num && { color: "#fff" }]}
-              >
+              <Text style={[styles.qtsBtnText, { color: colors.textLight }, nQts === num && { color: "#fff" }]}>
                 {num}
               </Text>
             </TouchableOpacity>
@@ -145,7 +137,7 @@ export default function GeradorSimulado() {
         </View>
 
         <TouchableOpacity
-          style={[styles.mainBtn, (loading || cooldownMin > 0) && { opacity: 0.6 }]}
+          style={[styles.mainBtn, { backgroundColor: colors.primary }, (loading || cooldownMin > 0) && { opacity: 0.6 }]}
           onPress={gerarSimuladoIA}
           disabled={loading || cooldownMin > 0}
         >
@@ -169,15 +161,9 @@ export default function GeradorSimulado() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  header: {
-    paddingTop: 60,
-    padding: 25,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 15,
-  },
-  title: { fontSize: 20, fontWeight: "bold", color: Colors.text },
+  container: { flex: 1 },
+  header: { paddingTop: 60, padding: 25, flexDirection: "row", alignItems: "center", gap: 15 },
+  title: { fontSize: 20, fontWeight: "bold" },
   content: { padding: 25 },
   aiBanner: {
     backgroundColor: "#4F46E5",
@@ -186,12 +172,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 24,
   },
-  bannerTitle: {
-    color: "#fff",
-    fontSize: 24,
-    fontWeight: "bold",
-    marginTop: 10,
-  },
+  bannerTitle: { color: "#fff", fontSize: 24, fontWeight: "bold", marginTop: 10 },
   bannerSub: { color: "rgba(255,255,255,0.8)", textAlign: "center" },
   cooldownBanner: {
     flexDirection: "row",
@@ -205,28 +186,10 @@ const styles = StyleSheet.create({
     borderColor: "#FDE68A",
   },
   cooldownText: { color: "#92400E", fontSize: 14 },
-  label: {
-    fontWeight: "bold",
-    marginBottom: 10,
-    fontSize: 16,
-    color: Colors.text,
-    marginTop: 10,
-  },
-  input: {
-    backgroundColor: "#F1F5F9",
-    padding: 18,
-    borderRadius: 15,
-    fontSize: 16,
-    marginBottom: 20,
-    color: "#000",
-  },
-  qtsSelector: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 30,
-  },
+  label: { fontWeight: "bold", marginBottom: 10, fontSize: 16, marginTop: 10 },
+  input: { padding: 18, borderRadius: 15, fontSize: 16, marginBottom: 20, borderWidth: 1 },
+  qtsSelector: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30 },
   qtsBtn: {
-    backgroundColor: "#F1F5F9",
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -234,9 +197,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     alignItems: "center",
   },
-  qtsBtnText: { fontWeight: "bold", color: Colors.textLight },
+  qtsBtnText: { fontWeight: "bold" },
   mainBtn: {
-    backgroundColor: Colors.primary,
     padding: 20,
     borderRadius: 18,
     flexDirection: "row",

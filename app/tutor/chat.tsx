@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { aiService } from "../../src/services/aiService";
-import { Colors } from "../../src/styles/colors";
+import { useTheme } from "../../src/context/ThemeContext";
 
 interface Message {
   id: string;
@@ -22,6 +22,7 @@ interface Message {
 }
 
 export default function TutorChat() {
+  const { colors } = useTheme();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -36,11 +37,7 @@ export default function TutorChat() {
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      text: input,
-      from: "user",
-    };
+    const userMsg: Message = { id: Date.now().toString(), text: input, from: "user" };
     setMessages((prev) => [...prev, userMsg]);
     const userPrompt = input;
     setInput("");
@@ -48,12 +45,7 @@ export default function TutorChat() {
 
     try {
       const response = await aiService.askGemini(userPrompt, 800);
-
-      const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        text: response,
-        from: "ai",
-      };
+      const aiMsg: Message = { id: (Date.now() + 1).toString(), text: response, from: "ai" };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (error) {
       console.error(error);
@@ -65,14 +57,14 @@ export default function TutorChat() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.bg }]}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Conversar com OSIA</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Conversar com OSIA</Text>
       </View>
 
       <FlatList
@@ -85,33 +77,29 @@ export default function TutorChat() {
           <View
             style={[
               styles.bubble,
-              item.from === "user" ? styles.userBubble : styles.aiBubble,
+              item.from === "user"
+                ? { alignSelf: "flex-end", backgroundColor: colors.primary, borderBottomRightRadius: 2 }
+                : { alignSelf: "flex-start", backgroundColor: colors.card, borderBottomLeftRadius: 2, elevation: 1 },
             ]}
           >
-            <Text
-              style={[
-                styles.msgText,
-                item.from === "user"
-                  ? { color: "#fff" }
-                  : { color: Colors.text },
-              ]}
-            >
+            <Text style={[styles.msgText, { color: item.from === "user" ? "#fff" : colors.text }]}>
               {item.text}
             </Text>
           </View>
         )}
       />
 
-      <View style={styles.inputArea}>
+      <View style={[styles.inputArea, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { backgroundColor: colors.bg, color: colors.text }]}
           placeholder="Sua dúvida..."
+          placeholderTextColor={colors.textLight}
           value={input}
           onChangeText={setInput}
           editable={!loading}
         />
         <TouchableOpacity
-          style={[styles.sendBtn, loading && { opacity: 0.5 }]}
+          style={[styles.sendBtn, { backgroundColor: colors.primary }, loading && { opacity: 0.5 }]}
           onPress={sendMessage}
           disabled={loading}
         >
@@ -127,52 +115,29 @@ export default function TutorChat() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  container: { flex: 1 },
   header: {
     paddingTop: 60,
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
     gap: 15,
-    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
   },
-  title: { fontSize: 18, fontWeight: "bold", color: Colors.text },
+  title: { fontSize: 18, fontWeight: "bold" },
   bubble: { padding: 15, borderRadius: 20, marginBottom: 10, maxWidth: "85%" },
-  userBubble: {
-    alignSelf: "flex-end",
-    backgroundColor: Colors.primary,
-    borderBottomRightRadius: 2,
-  },
-  aiBubble: {
-    alignSelf: "flex-start",
-    backgroundColor: "#fff",
-    borderBottomLeftRadius: 2,
-    elevation: 1,
-  },
   msgText: { fontSize: 15, lineHeight: 22 },
   inputArea: {
     flexDirection: "row",
     padding: 15,
-    backgroundColor: "#fff",
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: "#eee",
   },
-  input: {
-    flex: 1,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    height: 50,
-    color: "#000",
-  },
+  input: { flex: 1, borderRadius: 25, paddingHorizontal: 20, height: 50 },
   sendBtn: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: Colors.primary,
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 10,

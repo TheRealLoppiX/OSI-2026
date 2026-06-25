@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -15,22 +16,20 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { authService } from "../../src/services/auth";
 import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
+import { useTheme } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
-import { Colors } from "../../src/styles/colors";
 
 export default function PerfilAluno() {
   const { pageReady } = useNavigationLoading();
+  const { colors, isDark, toggleTheme } = useTheme();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [rankPosicao, setRankPosicao] = useState<number | string>("...");
 
-  // 1. CARREGA PERFIL LENDO SEU AUTH SERVICE CUSTOMIZADO
   const loadPerfilEPlacar = async () => {
     try {
       setLoading(true);
-
-      // Pegando o usuário salvo no seu AsyncStorage local
       const localUser = await authService.getUser();
 
       if (!localUser || !localUser.id) {
@@ -38,10 +37,8 @@ export default function PerfilAluno() {
         return;
       }
 
-      // Seta provisoriamente o que tem no celular para carregar a tela instantaneamente
       setUserData(localUser);
 
-      // Busca dados atualizados (como pontos e imagem nova) direto na tabela do banco
       const { data: perfil, error: perfilErr } = await supabase
         .from("usuarios")
         .select("*")
@@ -55,21 +52,14 @@ export default function PerfilAluno() {
         console.log(perfilErr.message);
       }
 
-      // CALCULA O RANKING EM TEMPO REAL
       const { data: todosUsuarios, error: rankErr } = await supabase
         .from("usuarios")
         .select("id")
         .order("pontuacao", { ascending: false });
 
       if (!rankErr && todosUsuarios) {
-        const index = todosUsuarios.findIndex(
-          (u: any) => u.id === localUser.id,
-        );
-        if (index !== -1) {
-          setRankPosicao(index + 1);
-        } else {
-          setRankPosicao("-");
-        }
+        const index = todosUsuarios.findIndex((u: any) => u.id === localUser.id);
+        setRankPosicao(index !== -1 ? index + 1 : "-");
       }
     } catch (err: any) {
     } finally {
@@ -82,16 +72,11 @@ export default function PerfilAluno() {
     loadPerfilEPlacar();
   }, []);
 
-  // 2. FUNÇÃO DE UPLOAD TOTALMENTE COMPATÍVEL
   const handlePickImage = async () => {
     try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert(
-          "Permissão necessária",
-          "Precisamos de acesso às suas fotos.",
-        );
+        Alert.alert("Permissão necessária", "Precisamos de acesso às suas fotos.");
         return;
       }
 
@@ -103,9 +88,7 @@ export default function PerfilAluno() {
         base64: true,
       });
 
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        return;
-      }
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
 
       setUploading(true);
       const selectedImage = result.assets[0];
@@ -122,38 +105,22 @@ export default function PerfilAluno() {
 
       const { error: storageError } = await supabase.storage
         .from("avatars")
-        .upload(fileName, imageBuffer, {
-          contentType: "image/png",
-          upsert: true,
-        });
+        .upload(fileName, imageBuffer, { contentType: "image/png", upsert: true });
 
       if (storageError) {
-        throw new Error(
-          "Falha no Storage: Verifique as políticas do bucket avatars.",
-        );
+        throw new Error("Falha no Storage: Verifique as políticas do bucket avatars.");
       }
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("avatars").getPublicUrl(fileName);
-
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(fileName);
       const updatedUser = { ...userData, avatar_url: publicUrl };
 
-      // Atualiza a tabela pública
-      await supabase
-        .from("usuarios")
-        .update({ avatar_url: publicUrl })
-        .eq("id", userId);
-
+      await supabase.from("usuarios").update({ avatar_url: publicUrl }).eq("id", userId);
       setUserData(updatedUser);
       await authService.saveUser(updatedUser);
 
       Alert.alert("Sucesso!", "Sua foto de perfil foi atualizada.");
     } catch (error: any) {
-      Alert.alert(
-        "Erro no Upload",
-        error.message || "Não foi possível salvar a foto.",
-      );
+      Alert.alert("Erro no Upload", error.message || "Não foi possível salvar a foto.");
     } finally {
       setUploading(false);
     }
@@ -174,8 +141,8 @@ export default function PerfilAluno() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={[styles.center, { flex: 1, backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -183,13 +150,13 @@ export default function PerfilAluno() {
   const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/png?seed=${userData?.usuario || "Estudante"}`;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Meu Perfil</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Meu Perfil</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -198,9 +165,9 @@ export default function PerfilAluno() {
         <TouchableOpacity onPress={handlePickImage} disabled={uploading}>
           <Image
             source={{ uri: userData?.avatar_url || defaultAvatar }}
-            style={styles.avatar}
+            style={[styles.avatar, { borderColor: colors.card }]}
           />
-          <View style={styles.editBadge}>
+          <View style={[styles.editBadge, { backgroundColor: colors.primary }]}>
             {uploading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
@@ -209,55 +176,65 @@ export default function PerfilAluno() {
           </View>
         </TouchableOpacity>
 
-        <Text style={styles.nameText}>{userData?.usuario || "Estudante"}</Text>
-        <Text style={styles.subText}>
+        <Text style={[styles.nameText, { color: colors.text }]}>
+          {userData?.usuario || "Estudante"}
+        </Text>
+        <Text style={[styles.subText, { color: colors.textLight }]}>
           {userData?.instituicao || "IF Sertão - Salgueiro"}
         </Text>
       </View>
 
-      {/* CARD DE PONTUAÇÃO E RANKING REAL */}
-      <View style={styles.statsContainer}>
+      {/* CARD DE PONTUAÇÃO E RANKING */}
+      <View style={[styles.statsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.statBox}>
           <Ionicons name="flash" size={24} color="#FFD700" />
-          <Text style={styles.statNumber}>{userData?.pontuacao || 0}</Text>
-          <Text style={styles.statLabel}>Total de XP</Text>
+          <Text style={[styles.statNumber, { color: colors.text }]}>
+            {userData?.pontuacao || 0}
+          </Text>
+          <Text style={[styles.statLabel, { color: colors.textLight }]}>Total de XP</Text>
         </View>
 
-        <View
-          style={[
-            styles.statBox,
-            { borderLeftWidth: 1, borderLeftColor: "#F1F5F9" },
-          ]}
-        >
-          <Ionicons name="trophy" size={24} color={Colors.primary} />
-          <Text style={styles.statNumber}>#{rankPosicao}</Text>
-          <Text style={styles.statLabel}>Posição no Ranking</Text>
+        <View style={[styles.statBox, { borderLeftWidth: 1, borderLeftColor: colors.border }]}>
+          <Ionicons name="trophy" size={24} color={colors.primary} />
+          <Text style={[styles.statNumber, { color: colors.text }]}>#{rankPosicao}</Text>
+          <Text style={[styles.statLabel, { color: colors.textLight }]}>Posição no Ranking</Text>
         </View>
       </View>
 
-      {/* LISTA DE INFORMAÇÕES / AÇÕES */}
+      {/* MENU */}
       <View style={styles.menuContainer}>
-        <View style={styles.menuItem}>
-          <Ionicons name="mail-outline" size={20} color={Colors.textLight} />
-          <Text style={styles.menuItemText}>
+        <View style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="mail-outline" size={20} color={colors.textLight} />
+          <Text style={[styles.menuItemText, { color: colors.text }]}>
             {userData?.email || "E-mail não disponível"}
           </Text>
         </View>
 
+        {/* TOGGLE TEMA ESCURO */}
+        <View style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}>
+          <Ionicons
+            name={isDark ? "moon" : "moon-outline"}
+            size={20}
+            color={colors.textLight}
+          />
+          <Text style={[styles.menuItemText, { color: colors.text }]}>Tema escuro</Text>
+          <Switch
+            value={isDark}
+            onValueChange={toggleTheme}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor="#fff"
+          />
+        </View>
+
         <TouchableOpacity
-          style={[styles.menuItem, { marginTop: 20 }]}
+          style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}
           onPress={() => router.push("/(tabs)/ranking")}
         >
-          <Ionicons name="podium-outline" size={20} color={Colors.primary} />
-          <Text
-            style={[
-              styles.menuItemText,
-              { color: Colors.primary, fontWeight: "bold" },
-            ]}
-          >
+          <Ionicons name="podium-outline" size={20} color={colors.primary} />
+          <Text style={[styles.menuItemText, { color: colors.primary, fontWeight: "bold" }]}>
             Ver Leaderboard Completa
           </Text>
-          <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
         </TouchableOpacity>
       </View>
 
@@ -270,9 +247,8 @@ export default function PerfilAluno() {
   );
 }
 
-// Estilos mantidos originais
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   center: { justifyContent: "center", alignItems: "center" },
   header: {
     flexDirection: "row",
@@ -280,26 +256,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: "#fff",
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
   },
   backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: "bold", color: Colors.text },
+  headerTitle: { fontSize: 18, fontWeight: "bold" },
   avatarSection: { alignItems: "center", marginTop: 30 },
   avatar: {
     width: 110,
     height: 110,
     borderRadius: 55,
     borderWidth: 3,
-    borderColor: "#fff",
     backgroundColor: "#E2E8F0",
   },
   editBadge: {
     position: "absolute",
     bottom: 2,
     right: 2,
-    backgroundColor: Colors.primary,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -308,44 +280,30 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
   },
-  nameText: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: Colors.text,
-    marginTop: 15,
-  },
-  subText: { fontSize: 14, color: Colors.textLight, marginTop: 4 },
+  nameText: { fontSize: 22, fontWeight: "bold", marginTop: 15 },
+  subText: { fontSize: 14, marginTop: 4 },
   statsContainer: {
     flexDirection: "row",
-    backgroundColor: "#fff",
     marginHorizontal: 25,
     marginTop: 30,
     borderRadius: 24,
     paddingVertical: 20,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
     elevation: 2,
   },
   statBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4 },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: Colors.text,
-    marginTop: 4,
-  },
-  statLabel: { fontSize: 12, color: Colors.textLight },
+  statNumber: { fontSize: 20, fontWeight: "900", marginTop: 4 },
+  statLabel: { fontSize: 12 },
   menuContainer: { marginHorizontal: 25, marginTop: 30 },
   menuItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
     padding: 16,
     borderRadius: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: "#F1F5F9",
   },
-  menuItemText: { flex: 1, fontSize: 15, color: Colors.text },
+  menuItemText: { flex: 1, fontSize: 15 },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",

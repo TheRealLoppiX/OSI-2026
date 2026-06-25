@@ -14,11 +14,11 @@ import {
   View,
 } from "react-native";
 import ViewShot from "react-native-view-shot";
-import { Colors } from "../../src/styles/colors";
+import { useTheme } from "../../src/context/ThemeContext";
 
 export default function FlashcardGenerator() {
-  // Pegamos os dados das questões e o título do simulado para a referência
   const { dados, titulo } = useLocalSearchParams();
+  const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const cardsRef = useRef<(ViewShot | null)[]>([]);
 
@@ -44,8 +44,7 @@ export default function FlashcardGenerator() {
 
       const content = await zip.generateAsync({ type: "base64" });
       const rootDir =
-        (FileSystem as any).cacheDirectory ||
-        (FileSystem as any).documentDirectory;
+        (FileSystem as any).cacheDirectory || (FileSystem as any).documentDirectory;
       const zipPath = `${rootDir}flashcards_osi.zip`;
 
       await FileSystem.writeAsStringAsync(zipPath, content, {
@@ -66,62 +65,57 @@ export default function FlashcardGenerator() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <View style={[styles.header, { backgroundColor: colors.card }]}>
         <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Flashcards de Revisão</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Flashcards de Revisão</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
-        <View style={styles.infoBox}>
-          <Text style={styles.subtitle}>
-            Estes cartões foram gerados com base nos seus erros no simulado.
-            Use-os para fixar o conteúdo.
+        <View style={[styles.infoBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Text style={[styles.subtitle, { color: colors.textLight }]}>
+            Estes cartões foram gerados com base nos seus erros no simulado. Use-os para fixar o conteúdo.
           </Text>
         </View>
 
         {questoes.map((item: any, index: number) => (
           <ViewShot
             key={index}
-            ref={(ref) => {
-              cardsRef.current[index] = ref;
-            }}
+            ref={(ref) => { cardsRef.current[index] = ref; }}
             options={{ format: "png", quality: 0.9 }}
             style={styles.cardWrapper}
           >
-            <View style={styles.card}>
+            <View style={[styles.card, { backgroundColor: colors.card }]}>
               <View style={styles.cardHeader}>
-                <View style={styles.tagIA}>
+                <View style={[styles.tagIA, { backgroundColor: colors.primary }]}>
                   <MaterialCommunityIcons name="robot" size={12} color="#fff" />
                   <Text style={styles.tagIAText}>OSINHO</Text>
                 </View>
-                <Text style={styles.refText}>
+                <Text style={[styles.refText, { color: colors.textLight }]}>
                   Ref: {titulo || "Simulado Geral"}
                 </Text>
               </View>
 
-              <Text style={styles.label}>CONCEITO</Text>
-              <Text style={styles.enunciado}>{item.enunciado}</Text>
+              <Text style={[styles.label, { color: colors.primary }]}>CONCEITO</Text>
+              <Text style={[styles.enunciado, { color: colors.text }]}>{item.enunciado}</Text>
 
-              <View style={styles.divider} />
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-              <Text style={styles.label}>JUSTIFICATIVA</Text>
-              <Text style={styles.justificativa}>{item.justificativa}</Text>
+              <Text style={[styles.label, { color: colors.primary }]}>JUSTIFICATIVA</Text>
+              <Text style={[styles.justificativa, { color: colors.textLight }]}>{item.justificativa}</Text>
 
-              <View style={styles.cardFooter}>
+              <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
                 <Text style={styles.footerBrand}>OSI 2026 • Salgueiro-PE</Text>
-                <Text style={styles.pageText}>
-                  {index + 1}/{questoes.length}
-                </Text>
+                <Text style={styles.pageText}>{index + 1}/{questoes.length}</Text>
               </View>
             </View>
           </ViewShot>
         ))}
 
         <TouchableOpacity
-          style={[styles.downloadBtn, loading && { opacity: 0.7 }]}
+          style={[styles.downloadBtn, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]}
           onPress={baixarFlashcards}
           disabled={loading}
         >
@@ -130,9 +124,7 @@ export default function FlashcardGenerator() {
           ) : (
             <>
               <Ionicons name="download-outline" size={24} color="#fff" />
-              <Text style={styles.downloadBtnText}>
-                Baixar Flashcards (.ZIP)
-              </Text>
+              <Text style={styles.downloadBtnText}>Baixar Flashcards (.ZIP)</Text>
             </>
           )}
         </TouchableOpacity>
@@ -142,25 +134,17 @@ export default function FlashcardGenerator() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F1F5F9" },
+  container: { flex: 1 },
   header: {
     paddingTop: 60,
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
     gap: 15,
-    backgroundColor: "#fff",
   },
-  headerTitle: { fontSize: 18, fontWeight: "bold", color: Colors.text },
-  infoBox: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-  subtitle: { fontSize: 13, color: "#64748B", lineHeight: 20 },
+  headerTitle: { fontSize: 18, fontWeight: "bold" },
+  infoBox: { padding: 15, borderRadius: 12, marginBottom: 20, borderWidth: 1 },
+  subtitle: { fontSize: 13, lineHeight: 20 },
   cardWrapper: {
     marginBottom: 20,
     borderRadius: 20,
@@ -168,7 +152,6 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowRadius: 10,
-    backgroundColor: "#fff",
   },
   card: {
     padding: 25,
@@ -184,7 +167,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   tagIA: {
-    backgroundColor: Colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
@@ -193,34 +175,21 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   tagIAText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
-  refText: { fontSize: 10, color: "#94A3B8", fontWeight: "600" },
-  label: {
-    fontSize: 9,
-    fontWeight: "900",
-    color: Colors.primary,
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  enunciado: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Colors.text,
-    marginBottom: 15,
-  },
-  divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 10 },
-  justificativa: { fontSize: 14, color: "#475569", lineHeight: 22 },
+  refText: { fontSize: 10, fontWeight: "600" },
+  label: { fontSize: 9, fontWeight: "900", letterSpacing: 1, marginBottom: 8 },
+  enunciado: { fontSize: 16, fontWeight: "bold", marginBottom: 15 },
+  divider: { height: 1, marginVertical: 10 },
+  justificativa: { fontSize: 14, lineHeight: 22 },
   cardFooter: {
     marginTop: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     borderTopWidth: 1,
-    borderTopColor: "#F8FAFC",
     paddingTop: 10,
   },
   footerBrand: { fontSize: 8, color: "#CBD5E1", fontWeight: "bold" },
   pageText: { fontSize: 9, color: "#94A3B8" },
   downloadBtn: {
-    backgroundColor: Colors.primary,
     padding: 20,
     borderRadius: 16,
     flexDirection: "row",

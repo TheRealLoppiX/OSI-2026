@@ -13,18 +13,20 @@ import {
   NavigationLoadingProvider,
   useNavigationLoading,
 } from "../src/context/NavigationLoadingContext";
+import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
 import { authService } from "../src/services/auth";
-import { Colors } from "../src/styles/colors";
 
 let jaRedirecionouGlobal = false;
 
 export default function RootLayout() {
   return (
-    <LoadingProvider>
-      <NavigationLoadingProvider>
-        <RootLayoutInner />
-      </NavigationLoadingProvider>
-    </LoadingProvider>
+    <ThemeProvider>
+      <LoadingProvider>
+        <NavigationLoadingProvider>
+          <RootLayoutInner />
+        </NavigationLoadingProvider>
+      </LoadingProvider>
+    </ThemeProvider>
   );
 }
 
@@ -102,12 +104,14 @@ function RootLayoutInner() {
     }
   }, [segment, navigationState?.key, usuarioLogado]);
 
+  const { colors } = useTheme();
+
   return (
     <>
       <Slot />
       {usuarioLogado === undefined && (
-        <View style={styles.authOverlay}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+        <View style={[styles.authOverlay, { backgroundColor: colors.bg }]}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       )}
       <NavigationLoading visible={isLoading} />
@@ -118,7 +122,6 @@ function RootLayoutInner() {
 const styles = StyleSheet.create({
   authOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: Colors.background,
     justifyContent: "center",
     alignItems: "center",
   },

@@ -16,7 +16,7 @@ import { WebView } from "react-native-webview";
 import { aiService } from "../../src/services/aiService";
 import { authService } from "../../src/services/auth";
 import { supabase } from "../../src/services/supabase";
-import { Colors } from "../../src/styles/colors";
+import { useTheme } from "../../src/context/ThemeContext";
 
 function getPerformanceTier(pct: number) {
   if (pct >= 80) return { label: "Excelente!", cor: "#10B981", bg: "#ECFDF5" };
@@ -27,6 +27,7 @@ function getPerformanceTier(pct: number) {
 
 export default function SimuladoNativo() {
   const { id, dadosIA, titulo } = useLocalSearchParams();
+  const { colors } = useTheme();
 
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -162,8 +163,8 @@ export default function SimuladoNativo() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+      <View style={[styles.center, { backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -356,29 +357,29 @@ export default function SimuladoNativo() {
   const q = questions[currentIdx];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <Modal visible={showFeedback} transparent animationType="fade">
         <View style={styles.modalOverlayCenter}>
           <MotiView
             from={{ scale: 0.9 }}
             animate={{ scale: 1 }}
-            style={styles.modalContentFeedback}
+            style={[styles.modalContentFeedback, { backgroundColor: colors.card }]}
           >
             <Ionicons
               name={isCorrect ? "checkmark-circle" : "close-circle"}
               size={60}
-              color={isCorrect ? Colors.accent : "#EF4444"}
+              color={isCorrect ? "#FBBF24" : "#EF4444"}
             />
-            <Text style={[styles.feedbackTitle, { color: isCorrect ? Colors.accent : "#EF4444" }]}>
+            <Text style={[styles.feedbackTitle, { color: isCorrect ? "#FBBF24" : "#EF4444" }]}>
               {isCorrect ? "Acertou!" : "Ops, errou!"}
             </Text>
             <ScrollView style={{ width: "100%", marginBottom: 20 }}>
-              <Text style={styles.feedbackLabel}>Justificativa:</Text>
-              <Text style={styles.feedbackText}>
+              <Text style={[styles.feedbackLabel, { color: colors.textLight }]}>Justificativa:</Text>
+              <Text style={[styles.feedbackText, { color: colors.text }]}>
                 {q?.justificativa || "Analise a alternativa com atenção."}
               </Text>
             </ScrollView>
-            <TouchableOpacity style={styles.nextBtn} onPress={nextQuestion}>
+            <TouchableOpacity style={[styles.nextBtn, { backgroundColor: colors.primary }]} onPress={nextQuestion}>
               <Text style={styles.nextBtnText}>Continuar</Text>
             </TouchableOpacity>
           </MotiView>
@@ -387,28 +388,28 @@ export default function SimuladoNativo() {
 
       <View style={styles.progressHeader}>
         <TouchableOpacity onPress={() => router.back()} style={styles.progressBackBtn}>
-          <Ionicons name="close" size={22} color={Colors.textLight} />
+          <Ionicons name="close" size={22} color={colors.textLight} />
         </TouchableOpacity>
         <View style={{ flex: 1, marginHorizontal: 12 }}>
-          <View style={styles.progressBarBg}>
+          <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
             <View
-              style={[styles.progressBarFill, { width: `${((currentIdx + 1) / questions.length) * 100}%` }]}
+              style={[styles.progressBarFill, { backgroundColor: colors.primary, width: `${((currentIdx + 1) / questions.length) * 100}%` }]}
             />
           </View>
         </View>
-        <Text style={styles.progressText}>{currentIdx + 1}/{questions.length}</Text>
+        <Text style={[styles.progressText, { color: colors.textLight }]}>{currentIdx + 1}/{questions.length}</Text>
       </View>
 
-      <Text style={styles.enunciado}>{q?.enunciado}</Text>
+      <Text style={[styles.enunciado, { color: colors.text }]}>{q?.enunciado}</Text>
       {["a", "b", "c", "d", "e"].map((l) => {
         const texto = q?.[`opcao_${l}`];
         if (!texto) return null;
         return (
-          <TouchableOpacity key={l} style={styles.optBtn} onPress={() => handleAnswer(l.toUpperCase())}>
-            <View style={styles.optLetter}>
+          <TouchableOpacity key={l} style={[styles.optBtn, { backgroundColor: colors.card }]} onPress={() => handleAnswer(l.toUpperCase())}>
+            <View style={[styles.optLetter, { backgroundColor: colors.primary }]}>
               <Text style={styles.optLetterText}>{l.toUpperCase()}</Text>
             </View>
-            <Text style={styles.optText}>{texto}</Text>
+            <Text style={[styles.optText, { color: colors.text }]}>{texto}</Text>
           </TouchableOpacity>
         );
       })}
@@ -417,7 +418,7 @@ export default function SimuladoNativo() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, padding: 25 },
+  container: { flex: 1, padding: 25 },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
   progressHeader: {
     marginTop: 40,
@@ -426,15 +427,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   progressBackBtn: { padding: 4 },
-  progressText: { fontWeight: "bold", color: Colors.textLight, fontSize: 13, minWidth: 36, textAlign: "right" },
-  progressBarBg: { height: 6, backgroundColor: "#E2E8F0", borderRadius: 3 },
-  progressBarFill: { height: "100%", backgroundColor: Colors.primary, borderRadius: 3 },
-  enunciado: { fontSize: 18, fontWeight: "bold", color: Colors.text, marginBottom: 25 },
+  progressText: { fontWeight: "bold", fontSize: 13, minWidth: 36, textAlign: "right" },
+  progressBarBg: { height: 6, borderRadius: 3 },
+  progressBarFill: { height: "100%", borderRadius: 3 },
+  enunciado: { fontSize: 18, fontWeight: "bold", marginBottom: 25 },
   optBtn: {
     flexDirection: "row",
     alignItems: "center",
     padding: 15,
-    backgroundColor: "#fff",
     borderRadius: 15,
     marginBottom: 12,
     elevation: 1,
@@ -443,13 +443,12 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: Colors.primary,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 15,
   },
   optLetterText: { color: "#fff", fontWeight: "bold" },
-  optText: { flex: 1, color: Colors.text },
+  optText: { flex: 1 },
 
   modalOverlay: {
     flex: 1,
@@ -479,9 +478,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   feedbackTitle: { fontSize: 22, fontWeight: "bold", marginVertical: 15 },
-  feedbackLabel: { fontSize: 12, fontWeight: "bold", color: Colors.textLight, marginTop: 15, marginBottom: 5 },
-  feedbackText: { fontSize: 15, color: Colors.text, lineHeight: 22 },
-  nextBtn: { backgroundColor: Colors.primary, width: "100%", padding: 18, borderRadius: 15, alignItems: "center" },
+  feedbackLabel: { fontSize: 12, fontWeight: "bold", marginTop: 15, marginBottom: 5 },
+  feedbackText: { fontSize: 15, lineHeight: 22 },
+  nextBtn: { width: "100%", padding: 18, borderRadius: 15, alignItems: "center" },
   nextBtnText: { color: "#fff", fontWeight: "bold" },
 
   resultContainer: { flex: 1, backgroundColor: "#0F172A" },
