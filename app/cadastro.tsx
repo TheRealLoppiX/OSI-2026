@@ -1,9 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,104 +14,254 @@ import {
   View,
 } from "react-native";
 import { authService } from "../src/services/auth";
+import { supabase } from "../src/services/supabase";
 import { usePageReady } from "../src/context/NavigationLoadingContext";
+import { cadastroSchema } from "../src/schemas/authSchema";
 import { Colors } from "../src/styles/colors";
+
+type Step = "form" | "otp";
 
 export default function Cadastro() {
   usePageReady();
+
+  const [step, setStep] = useState<Step>("form");
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [usuario, setUsuario] = useState("");
   const [instituicao, setInstituicao] = useState("");
   const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSenha, setShowSenha] = useState(false);
 
-  const handleCadastro = async () => {
+  const otpRef = useRef<TextInput>(null);
+
+  const handleEnviarCodigo = async () => {
+    const validacao = cadastroSchema.safeParse({ nome, email, usuario, instituicao, senha });
+    if (!validacao.success) {
+      return Alert.alert("Atenção", validacao.error.issues[0].message);
+    }
+    if (senha !== confirmarSenha) {
+      return Alert.alert("Atenção", "As senhas não coincidem.");
+    }
+
     try {
       setLoading(true);
-      await authService.registrarAluno({ nome, usuario, instituicao, senha });
+      const senhaCriptografada = authService.hashSenha(senha);
 
-      Alert.alert("Sucesso!", "Conta criada com sucesso!");
-      router.replace("/(tabs)/home");
-    } catch (error: any) {
-      Alert.alert("Erro no Cadastro", error.message);
+      const { error } = await supabase.functions.invoke("enviar-otp", {
+        body: { email: email.toLowerCase().trim(), nome: nome.trim(), usuario: usuario.trim(), instituicao: instituicao.trim(), senhaCriptografada },
+      });
+
+      if (error) throw new Error(error.message);
+
+      setStep("otp");
+      setTimeout(() => otpRef.current?.focus(), 300);
+    } catch (err: any) {
+      Alert.alert("Erro", err.message || "Não foi possível enviar o código.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleVerificarOtp = async () => {
+    if (otp.length !== 6) return Alert.alert("Atenção", "Digite os 6 dígitos do código.");
+
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke("verificar-otp", {
+        body: { email: email.toLowerCase().trim(), otp },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      await authService.saveUser(data.user);
+      router.replace("/(tabs)/home");
+    } catch (err: any) {
+      Alert.alert("Código inválido", err.message || "Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReenviar = async () => {
+    setOtp("");
+    setStep("form");
+  };
+
+  if (step === "otp") {
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleReenviar}>
+            <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          </TouchableOpacity>
+
+          <View style={styles.otpHeader}>
+            <View style={styles.otpIconBox}>
+              <Ionicons name="mail" size={32} color={Colors.primary} />
+            </View>
+            <Text style={styles.title}>Verifique seu e-mail</Text>
+            <Text style={styles.otpSubtitle}>
+              Enviamos um código de 6 dígitos para{"\n"}
+              <Text style={{ color: Colors.primary, fontWeight: "bold" }}>{email}</Text>
+            </Text>
+          </View>
+
+          <View style={styles.form}>
+            <Text style={styles.label}>Código de Verificação</Text>
+            <TextInput
+              ref={otpRef}
+              style={styles.otpInput}
+              placeholder="000000"
+              placeholderTextColor="#94A3B8"
+              keyboardType="number-pad"
+              maxLength={6}
+              value={otp}
+              onChangeText={setOtp}
+              textAlign="center"
+            />
+
+            <TouchableOpacity
+              style={[styles.button, loading && { opacity: 0.7 }]}
+              onPress={handleVerificarOtp}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Criar Conta</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.resendBtn} onPress={handleReenviar}>
+              <Text style={styles.resendText}>
+                Não recebeu?{" "}
+                <Text style={{ color: Colors.primary, fontWeight: "bold" }}>Reenviar código</Text>
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color={Colors.text} />
-      </TouchableOpacity>
-
-      <Text style={styles.title}>Criar Conta</Text>
-
-      <View style={styles.form}>
-        <Text style={styles.label}>Nome Completo</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Seu nome"
-          value={nome}
-          onChangeText={setNome}
-        />
-
-        <Text style={styles.label}>Usuário (Login)</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: joao_osi"
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={usuario}
-          onChangeText={setUsuario}
-        />
-
-        <Text style={styles.label}>Instituição / Escola</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: IF Sertão-PE"
-          value={instituicao}
-          onChangeText={setInstituicao}
-        />
-
-        <Text style={styles.label}>Senha</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Sua senha secreta"
-          secureTextEntry
-          value={senha}
-          onChangeText={setSenha}
-        />
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleCadastro}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Finalizar Cadastro</Text>
-          )}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+
+        <Text style={styles.title}>Criar Conta</Text>
+        <Text style={styles.subtitle}>Preencha seus dados para participar da OSI 2026</Text>
+
+        <View style={styles.form}>
+          <Text style={styles.label}>Nome Completo</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Seu nome completo"
+            value={nome}
+            onChangeText={setNome}
+          />
+
+          <Text style={styles.label}>E-mail</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="seu@email.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+          />
+
+          <Text style={styles.label}>Usuário (Login)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: joao_osi"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={usuario}
+            onChangeText={setUsuario}
+          />
+
+          <Text style={styles.label}>Instituição / Escola</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Ex: IF Sertão-PE"
+            value={instituicao}
+            onChangeText={setInstituicao}
+          />
+
+          <Text style={styles.label}>Senha</Text>
+          <View style={styles.senhaRow}>
+            <TextInput
+              style={[styles.input, { flex: 1, marginBottom: 0 }]}
+              placeholder="Mínimo 6 caracteres"
+              secureTextEntry={!showSenha}
+              value={senha}
+              onChangeText={setSenha}
+            />
+            <TouchableOpacity onPress={() => setShowSenha((v) => !v)} style={styles.eyeBtn}>
+              <Ionicons name={showSenha ? "eye-off" : "eye"} size={20} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.label}>Confirmar Senha</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Repita a senha"
+            secureTextEntry={!showSenha}
+            value={confirmarSenha}
+            onChangeText={setConfirmarSenha}
+          />
+
+          <TouchableOpacity
+            style={[styles.button, loading && { opacity: 0.7 }]}
+            onPress={handleEnviarCodigo}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Enviar Código de Verificação</Text>
+                <Ionicons name="mail-outline" size={18} color="#fff" />
+              </>
+            )}
+          </TouchableOpacity>
+
+          <Text style={styles.disclaimer}>
+            Um código de 6 dígitos será enviado ao seu e-mail para confirmar o cadastro.
+          </Text>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: Colors.background, padding: 30 },
+  container: { flex: 1, backgroundColor: Colors.background },
+  scrollContent: { flexGrow: 1, padding: 30 },
   backBtn: { marginTop: 40, marginBottom: 20 },
-  title: { fontSize: 32, fontWeight: "900", color: Colors.primary },
-  subtitle: { fontSize: 14, color: Colors.textLight, marginBottom: 30 },
+  title: { fontSize: 30, fontWeight: "900", color: Colors.primary },
+  subtitle: { fontSize: 14, color: Colors.textLight, marginBottom: 30, marginTop: 6 },
   form: { width: "100%" },
   label: {
     fontSize: 14,
     fontWeight: "bold",
     color: Colors.text,
     marginBottom: 5,
-    marginTop: 10,
+    marginTop: 12,
   },
   input: {
     backgroundColor: "#fff",
@@ -117,14 +269,64 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    marginBottom: 15,
+    marginBottom: 4,
+    fontSize: 15,
   },
+  senhaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  eyeBtn: { padding: 10 },
   button: {
     backgroundColor: Colors.primary,
     padding: 18,
     borderRadius: 15,
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 20,
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 24,
   },
   buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  disclaimer: {
+    fontSize: 12,
+    color: Colors.textLight,
+    textAlign: "center",
+    marginTop: 16,
+    lineHeight: 18,
+  },
+  otpHeader: { alignItems: "center", marginBottom: 36, marginTop: 20 },
+  otpIconBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: "#EFF6FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  otpSubtitle: {
+    fontSize: 14,
+    color: Colors.textLight,
+    textAlign: "center",
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  otpInput: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    fontSize: 32,
+    fontWeight: "900",
+    letterSpacing: 12,
+    color: Colors.text,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  resendBtn: { marginTop: 20, alignItems: "center" },
+  resendText: { fontSize: 14, color: Colors.textLight },
 });

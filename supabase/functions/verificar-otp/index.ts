@@ -1,0 +1,68 @@
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const json = (body: object, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
+  try {
+    const { email, otp } = await req.json();
+
+    if (!email || !otp) return json({ error: "Dados incompletos." }, 400);
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Busca verificação válida
+    const { data: verificacao } = await supabase
+      .from("verificacao_email")
+      .select("*")
+      .eq("email", email)
+      .eq("otp", otp)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (!verificacao) return json({ error: "Código inválido ou expirado." }, 401);
+
+    const { nome, usuario, instituicao, senhaCriptografada } = verificacao.dados;
+
+    // Cria usuário no banco
+    const { data: newUser, error: insertError } = await supabase
+      .from("usuarios")
+      .insert({
+        nome,
+        usuario,
+        email,
+        instituicao,
+        senha: senhaCriptografada,
+        pontuacao: 0,
+        role: "aluno",
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      if (insertError.code === "23505") return json({ error: "Usuário ou e-mail já cadastrado." }, 409);
+      throw insertError;
+    }
+
+    // Remove registro de verificação
+    await supabase.from("verificacao_email").delete().eq("id", verificacao.id);
+
+    return json({ user: newUser });
+  } catch (err: any) {
+    return json({ error: err.message }, 500);
+  }
+});

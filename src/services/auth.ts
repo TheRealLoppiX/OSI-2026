@@ -158,6 +158,23 @@ export const authService = {
     }
   },
 
+  hashSenha: function (senha: string): string {
+    const salt = bcrypt.genSaltSync(10);
+    return bcrypt.hashSync(senha, salt);
+  },
+
+  async adicionarXP(userId: string, xp: number) {
+    try {
+      const user = await this.getUser();
+      if (!user) return;
+      const novosPontos = (user.pontuacao || 0) + xp;
+      await supabase.from("usuarios").update({ pontuacao: novosPontos }).eq("id", userId);
+      await this.saveUser({ ...user, pontuacao: novosPontos });
+    } catch (e) {
+      console.error("Erro ao adicionar XP", e);
+    }
+  },
+
   async registrarDocente(dadosDocente: any) {
   try {
     const { nome, usuario, email, senha } = dadosDocente;

@@ -1,6 +1,7 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,31 +13,72 @@ import {
   View,
 } from "react-native";
 import { aiService } from "../../src/services/aiService";
+import { authService } from "../../src/services/auth";
 import { Colors } from "../../src/styles/colors";
+
+const UMA_HORA_MS = 60 * 60 * 1000;
 
 export default function GeradorSimulado() {
   const [tema, setTema] = useState("");
-  const [nQts, setNQts] = useState(5); // Padrão de 5 questões
+  const [nQts, setNQts] = useState(5);
   const [loading, setLoading] = useState(false);
+  const [cooldownMin, setCooldownMin] = useState(0);
+
+  useEffect(() => {
+    verificarCooldown();
+  }, []);
+
+  const verificarCooldown = async () => {
+    const user = await authService.getUser();
+    if (!user?.id) return;
+    const key = `@OSI_ai_gen_${user.id}`;
+    const lastStr = await AsyncStorage.getItem(key);
+    if (lastStr) {
+      const elapsed = Date.now() - Number(lastStr);
+      if (elapsed < UMA_HORA_MS) {
+        setCooldownMin(Math.ceil((UMA_HORA_MS - elapsed) / 60000));
+      } else {
+        setCooldownMin(0);
+      }
+    }
+  };
 
   const gerarSimuladoIA = async () => {
     if (!tema.trim()) return Alert.alert("Ops", "Qual o tema?");
-    setLoading(true);
 
+    const user = await authService.getUser();
+    const key = `@OSI_ai_gen_${user?.id || "guest"}`;
+    const lastStr = await AsyncStorage.getItem(key);
+
+    if (lastStr) {
+      const elapsed = Date.now() - Number(lastStr);
+      if (elapsed < UMA_HORA_MS) {
+        const restante = Math.ceil((UMA_HORA_MS - elapsed) / 60000);
+        return Alert.alert(
+          "Aguarde um pouco",
+          `Para não sobrecarregar a OSIA, cada usuário pode gerar 1 simulado por hora.\n\nPróximo disponível em ${restante} min.`
+        );
+      }
+    }
+
+    setLoading(true);
     try {
       const questoesGeradas = await aiService.gerarQuestoesIA(tema, nQts);
+
+      await AsyncStorage.setItem(key, String(Date.now()));
+      setCooldownMin(60);
 
       router.push({
         pathname: "/simulado",
         params: {
           dadosIA: JSON.stringify(questoesGeradas),
-          titulo: `Treino Groq: ${tema}`,
+          titulo: `Treino IA: ${tema}`,
         },
       } as any);
     } catch (error) {
       Alert.alert(
         "Erro",
-        "O limite de requisições gratuitas foi atingido. Tente em 1 minuto.",
+        "O limite de requisições gratuitas foi atingido. Tente em 1 minuto."
       );
     } finally {
       setLoading(false);
@@ -63,6 +105,15 @@ export default function GeradorSimulado() {
             Especifique para OSIA como você quer o Simulado
           </Text>
         </View>
+
+        {cooldownMin > 0 && (
+          <View style={styles.cooldownBanner}>
+            <Ionicons name="time-outline" size={20} color="#F59E0B" />
+            <Text style={styles.cooldownText}>
+              Próximo simulado disponível em <Text style={{ fontWeight: "bold" }}>{cooldownMin} min</Text>
+            </Text>
+          </View>
+        )}
 
         <Text style={styles.label}>Tema do Simulado</Text>
         <TextInput
@@ -94,12 +145,17 @@ export default function GeradorSimulado() {
         </View>
 
         <TouchableOpacity
-          style={[styles.mainBtn, loading && { opacity: 0.7 }]}
+          style={[styles.mainBtn, (loading || cooldownMin > 0) && { opacity: 0.6 }]}
           onPress={gerarSimuladoIA}
-          disabled={loading}
+          disabled={loading || cooldownMin > 0}
         >
           {loading ? (
             <ActivityIndicator color="#fff" />
+          ) : cooldownMin > 0 ? (
+            <>
+              <Ionicons name="time" size={20} color="#fff" />
+              <Text style={styles.mainBtnText}>Disponível em {cooldownMin} min</Text>
+            </>
           ) : (
             <>
               <Text style={styles.mainBtnText}>Gerar Simulado</Text>
@@ -128,7 +184,7 @@ const styles = StyleSheet.create({
     padding: 30,
     borderRadius: 30,
     alignItems: "center",
-    marginBottom: 30,
+    marginBottom: 24,
   },
   bannerTitle: {
     color: "#fff",
@@ -137,6 +193,18 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   bannerSub: { color: "rgba(255,255,255,0.8)", textAlign: "center" },
+  cooldownBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FEF3C7",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  cooldownText: { color: "#92400E", fontSize: 14 },
   label: {
     fontWeight: "bold",
     marginBottom: 10,
@@ -166,10 +234,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     alignItems: "center",
   },
-  qtsBtnText: {
-    fontWeight: "bold",
-    color: Colors.textLight,
-  },
+  qtsBtnText: { fontWeight: "bold", color: Colors.textLight },
   mainBtn: {
     backgroundColor: Colors.primary,
     padding: 20,
