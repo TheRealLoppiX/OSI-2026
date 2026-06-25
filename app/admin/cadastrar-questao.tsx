@@ -16,6 +16,7 @@ import { Colors } from "../../src/styles/colors";
 export default function CadastrarQuestao() {
   const { simuladoId } = useLocalSearchParams();
   const [enunciado, setEnunciado] = useState("");
+  const [materia, setMateria] = useState("");
   const [opcoes, setOpcoes] = useState({ A: "", B: "", C: "", D: "" });
   const [correta, setCorreta] = useState("A");
   const [justificativa, setJustificativa] = useState("");
@@ -36,6 +37,7 @@ export default function CadastrarQuestao() {
     const { error } = await supabase.from("questoes").insert([
       {
         enunciado,
+        materia: materia.trim() || null,
         opcao_a: opcoes.A,
         opcao_b: opcoes.B,
         opcao_c: opcoes.C,
@@ -43,8 +45,8 @@ export default function CadastrarQuestao() {
         resposta_correta: correta,
         justificativa,
         referencias: referencia,
-        dificuldade: dificuldade,
-        simulado_id: Number(simuladoId) || 1,
+        dificuldade,
+        simulado_id: simuladoId ? Number(simuladoId) : null,
       },
     ]);
 
@@ -90,6 +92,14 @@ export default function CadastrarQuestao() {
             </TouchableOpacity>
           ))}
         </View>
+
+        <Text style={styles.label}>Matéria / Tópico</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Ex: Redes de Computadores, Hardware, Python..."
+          value={materia}
+          onChangeText={setMateria}
+        />
 
         <Text style={styles.label}>Enunciado da Questão</Text>
         <TextInput
