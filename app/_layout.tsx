@@ -4,8 +4,9 @@ import {
   useRouter,
   useSegments,
 } from "expo-router";
+import * as NavigationBar from "expo-navigation-bar";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, AppState, Platform, StyleSheet, View } from "react-native";
 import { NavigationLoading } from "../components/NavigationLoading";
 import { LoadingProvider } from "../src/context/LoadingContext";
 import {
@@ -41,6 +42,25 @@ function RootLayoutInner() {
       .getUser()
       .then((user) => setUsuarioLogado(user ?? null))
       .catch(() => setUsuarioLogado(null));
+  }, []);
+
+  // Esconde a barra de navegação do Android e re-oculta ao voltar do background
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+
+    const hideNav = async () => {
+      await NavigationBar.setPositionAsync("absolute");
+      await NavigationBar.setVisibilityAsync("hidden");
+      await NavigationBar.setBehaviorAsync("overlay-swipe");
+    };
+
+    hideNav();
+
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") hideNav();
+    });
+
+    return () => sub.remove();
   }, []);
 
   // Dispara o loading a cada troca de rota (exceto na montagem inicial)
