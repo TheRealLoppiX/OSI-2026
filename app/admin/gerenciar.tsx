@@ -145,15 +145,23 @@ export default function GerenciarSimulados() {
         </TouchableOpacity>
       </View>
 
-      {/* Atalho para banco de questões */}
-      <TouchableOpacity
-        style={styles.questoesBtn}
-        onPress={() => router.push("/admin/cadastrar-questao" as any)}
-      >
-        <Ionicons name="help-circle-outline" size={20} color={Colors.primary} />
-        <Text style={styles.questoesBtnText}>Gerenciar Banco de Questões</Text>
-        <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
-      </TouchableOpacity>
+      {/* Atalhos rápidos */}
+      <View style={styles.atalhos}>
+        <TouchableOpacity
+          style={styles.atalhoBtn}
+          onPress={() => router.push("/admin/cadastrar-questao" as any)}
+        >
+          <Ionicons name="help-circle-outline" size={18} color={Colors.primary} />
+          <Text style={styles.atalhoBtnText}>Banco de Questões</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.atalhoBtn, { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0" }]}
+          onPress={() => router.push("/admin/importar-questoes" as any)}
+        >
+          <Ionicons name="cloud-upload-outline" size={18} color="#10B981" />
+          <Text style={[styles.atalhoBtnText, { color: "#10B981" }]}>Importar Planilha</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* MODAL: CRIAR SIMULADO */}
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -372,18 +380,25 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F1F5F9",
   },
   title: { fontSize: 20, fontWeight: "bold", color: Colors.text },
-  questoesBtn: {
+  atalhos: {
+    flexDirection: "row",
+    gap: 10,
+    marginHorizontal: 16,
+    marginVertical: 12,
+  },
+  atalhoBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    margin: 16,
-    padding: 14,
+    justifyContent: "center",
+    gap: 6,
+    padding: 12,
     backgroundColor: "#EFF6FF",
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#BFDBFE",
   },
-  questoesBtnText: { flex: 1, color: Colors.primary, fontWeight: "600", fontSize: 14 },
+  atalhoBtnText: { color: Colors.primary, fontWeight: "600", fontSize: 13 },
   card: {
     backgroundColor: "#fff",
     padding: 16,

@@ -400,14 +400,18 @@ export default function SimuladoNativo() {
       </View>
 
       <Text style={styles.enunciado}>{q?.enunciado}</Text>
-      {["a", "b", "c", "d"].map((l) => (
-        <TouchableOpacity key={l} style={styles.optBtn} onPress={() => handleAnswer(l.toUpperCase())}>
-          <View style={styles.optLetter}>
-            <Text style={styles.optLetterText}>{l.toUpperCase()}</Text>
-          </View>
-          <Text style={styles.optText}>{q?.[`opcao_${l}`]}</Text>
-        </TouchableOpacity>
-      ))}
+      {["a", "b", "c", "d", "e"].map((l) => {
+        const texto = q?.[`opcao_${l}`];
+        if (!texto) return null;
+        return (
+          <TouchableOpacity key={l} style={styles.optBtn} onPress={() => handleAnswer(l.toUpperCase())}>
+            <View style={styles.optLetter}>
+              <Text style={styles.optLetterText}>{l.toUpperCase()}</Text>
+            </View>
+            <Text style={styles.optText}>{texto}</Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }

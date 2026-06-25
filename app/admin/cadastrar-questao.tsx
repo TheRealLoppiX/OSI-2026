@@ -17,7 +17,7 @@ export default function CadastrarQuestao() {
   const { simuladoId } = useLocalSearchParams();
   const [enunciado, setEnunciado] = useState("");
   const [materia, setMateria] = useState("");
-  const [opcoes, setOpcoes] = useState({ A: "", B: "", C: "", D: "" });
+  const [opcoes, setOpcoes] = useState({ A: "", B: "", C: "", D: "", E: "" });
   const [correta, setCorreta] = useState("A");
   const [justificativa, setJustificativa] = useState("");
   const [referencia, setReferencia] = useState("");
@@ -42,6 +42,7 @@ export default function CadastrarQuestao() {
         opcao_b: opcoes.B,
         opcao_c: opcoes.C,
         opcao_d: opcoes.D,
+        opcao_e: opcoes.E || null,
         resposta_correta: correta,
         justificativa,
         referencias: referencia,
@@ -113,7 +114,7 @@ export default function CadastrarQuestao() {
         <Text style={styles.label}>
           Alternativas (Marque a correta no círculo)
         </Text>
-        {(["A", "B", "C", "D"] as const).map((letra) => (
+        {(["A", "B", "C", "D", "E"] as const).map((letra) => (
           <View key={letra} style={styles.optionRow}>
             <TouchableOpacity
               style={[styles.radio, correta === letra && styles.radioActive]}

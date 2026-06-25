@@ -56,9 +56,10 @@ export const aiService = {
   },
 
   gerarQuestoesIA: async (tema: string, quantidade: number) => {
-    const prompt = `Gere um JSON com exatamente ${quantidade} questões sobre ${tema}. 
-    Siga este formato: [{"enunciado": "...", "opcao_a": "...", "opcao_b": "...", "opcao_c": "...", "opcao_d": "...", "resposta_correta": "A", "justificativa": "..."}]
-    Retorne APENAS o JSON, sem explicações.`;
+    const prompt = `Gere um JSON com exatamente ${quantidade} questões de múltipla escolha sobre "${tema}" no nível de olimpíada de informática.
+    Formato obrigatório (array na chave "questoes"):
+    {"questoes": [{"enunciado": "...", "opcao_a": "...", "opcao_b": "...", "opcao_c": "...", "opcao_d": "...", "opcao_e": "...", "resposta_correta": "A", "justificativa": "explicação objetiva da resposta correta", "materia": "${tema}"}]}
+    Regras: 5 alternativas por questão (A-E), apenas uma correta, justificativa obrigatória. Retorne APENAS o JSON.`;
     
     try {
       const response = await fetch(API_URL, {
@@ -79,7 +80,7 @@ export const aiService = {
       const content = data.choices[0].message.content;
       
       const parsed = JSON.parse(content);
-      return Array.isArray(parsed) ? parsed : (parsed.questions || parsed.questoes);
+      return Array.isArray(parsed) ? parsed : (parsed.questoes || parsed.questions || parsed);
     } catch (error) {
       console.error("Erro ao gerar questões:", error);
       throw error;
