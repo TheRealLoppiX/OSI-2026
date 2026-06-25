@@ -14,10 +14,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { authService } from "../../src/services/auth";
+import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
 import { supabase } from "../../src/services/supabase";
 import { Colors } from "../../src/styles/colors";
 
 export default function PerfilAluno() {
+  const { pageReady } = useNavigationLoading();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -72,6 +74,7 @@ export default function PerfilAluno() {
     } catch (err: any) {
     } finally {
       setLoading(false);
+      pageReady();
     }
   };
 

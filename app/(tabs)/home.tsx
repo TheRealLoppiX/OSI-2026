@@ -17,10 +17,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { aiService } from "../../src/services/aiService";
 import { authService } from "../../src/services/auth";
 import { newsService } from "../../src/services/newsService";
+import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
 import { supabase } from "../../src/services/supabase";
 import { Colors } from "../../src/styles/colors";
 
 export default function HomeAluno() {
+  const { pageReady } = useNavigationLoading();
   const [news, setNews] = useState<any[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,6 +79,7 @@ export default function HomeAluno() {
     } finally {
       setLoadingNews(false);
       setRefreshing(false);
+      pageReady();
     }
   };
 

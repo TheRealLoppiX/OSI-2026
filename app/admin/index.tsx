@@ -10,10 +10,12 @@ import {
   View,
 } from "react-native";
 import { authService } from "../../src/services/auth";
+import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
 import { supabase } from "../../src/services/supabase";
 import { Colors } from "../../src/styles/colors";
 
 export default function AdminDashboard() {
+  const { pageReady } = useNavigationLoading();
   const [stats, setStats] = useState({ alunos: 0, simulados: 0, questoes: 0 });
   const [loading, setLoading] = useState(true);
   const [apiUrl, setApiUrl] = useState("");
@@ -41,6 +43,7 @@ export default function AdminDashboard() {
       console.error("Erro ao buscar estatísticas:", error);
     } finally {
       setLoading(false);
+      pageReady();
     }
   };
 

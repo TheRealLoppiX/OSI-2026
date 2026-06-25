@@ -12,9 +12,11 @@ import {
   View,
 } from "react-native";
 import { authService } from "../src/services/auth";
+import { usePageReady } from "../src/context/NavigationLoadingContext";
 import { Colors } from "../src/styles/colors";
 
 export default function Cadastro() {
+  usePageReady();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [usuario, setUsuario] = useState("");

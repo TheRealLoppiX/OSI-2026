@@ -10,9 +10,11 @@ import {
   View,
 } from "react-native";
 import { authService } from "../src/services/auth";
+import { usePageReady } from "../src/context/NavigationLoadingContext";
 import { Colors } from "../src/styles/colors";
 
 export default function Login() {
+  usePageReady();
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

@@ -11,10 +11,12 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
 import { supabase } from "../../src/services/supabase";
 import { Colors } from "../../src/styles/colors";
 
 export default function EscolherSimulado() {
+  const { pageReady } = useNavigationLoading();
   const [simulados, setSimulados] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tutorVisible, setTutorVisible] = useState(false);
@@ -24,9 +26,13 @@ export default function EscolherSimulado() {
   }, []);
 
   const fetchSimulados = async () => {
-    const { data, error } = await supabase.from("simulados").select("*");
-    if (!error) setSimulados(data || []);
-    setLoading(false);
+    try {
+      const { data, error } = await supabase.from("simulados").select("*");
+      if (!error) setSimulados(data || []);
+    } finally {
+      setLoading(false);
+      pageReady();
+    }
   };
 
   const handleSimuladoPress = (item: any) => {

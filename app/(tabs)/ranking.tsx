@@ -12,10 +12,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { authService } from "../../src/services/auth";
+import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
 import { supabase } from "../../src/services/supabase";
 import { Colors } from "../../src/styles/colors";
 
 export default function RankingCompleto() {
+  const { pageReady } = useNavigationLoading();
   const [ranking, setRanking] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -39,6 +41,7 @@ export default function RankingCompleto() {
       console.error("Erro ao buscar ranking:", err);
     } finally {
       setLoading(false);
+      pageReady();
     }
   };
 
