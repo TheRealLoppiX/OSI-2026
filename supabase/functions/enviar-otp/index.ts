@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { Resend } from "npm:resend";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -69,13 +68,21 @@ serve(async (req: Request) => {
       expires_at,
     });
 
-    // Envia e-mail via Resend
-    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-    await resend.emails.send({
-      from: "OSI 2026 <onboarding@resend.dev>",
-      to: email,
-      subject: `${otp} é o seu código de verificação · OSI 2026`,
-      html: `
+    // Envia e-mail via Brevo
+    const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "api-key": Deno.env.get("BREVO_API_KEY") ?? "",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: {
+          name: "OSI 2026",
+          email: Deno.env.get("BREVO_SENDER_EMAIL") ?? "",
+        },
+        to: [{ email, name: nome }],
+        subject: `${otp} é o seu código de verificação · OSI 2026`,
+        htmlContent: `
         <!DOCTYPE html>
         <html>
         <body style="margin:0;padding:0;background:#0A1628;font-family:sans-serif;">
@@ -94,7 +101,13 @@ serve(async (req: Request) => {
         </body>
         </html>
       `,
+      }),
     });
+
+    if (!brevoRes.ok) {
+      const err = await brevoRes.json();
+      throw new Error(err.message ?? "Falha ao enviar e-mail.");
+    }
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
