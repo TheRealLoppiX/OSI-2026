@@ -4,13 +4,13 @@ import {
   useRouter,
   useSegments,
 } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { NavigationLoading } from "../components/NavigationLoading";
 import { LoadingProvider } from "../src/context/LoadingContext";
 import { authService } from "../src/services/auth";
 import { Colors } from "../src/styles/colors";
 
-// ✅ Fora do componente — sobrevive a remontagens
 let jaRedirecionouGlobal = false;
 
 export default function RootLayout() {
@@ -18,16 +18,31 @@ export default function RootLayout() {
   const router = useRouter();
   const navigationState = useRootNavigationState();
   const [usuarioLogado, setUsuarioLogado] = useState<any>(undefined);
+  const [navLoading, setNavLoading] = useState(false);
+  const isFirstMount = useRef(true);
+  const loadingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Reseta a flag global ao montar (boot limpo)
     jaRedirecionouGlobal = false;
-
     authService
       .getUser()
       .then((user) => setUsuarioLogado(user ?? null))
       .catch(() => setUsuarioLogado(null));
   }, []);
+
+  // Mostra loading em cada transição de rota (exceto na montagem inicial)
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    setNavLoading(true);
+    if (loadingTimer.current) clearTimeout(loadingTimer.current);
+    loadingTimer.current = setTimeout(() => setNavLoading(false), 550);
+    return () => {
+      if (loadingTimer.current) clearTimeout(loadingTimer.current);
+    };
+  }, [JSON.stringify(segment)]);
 
   useEffect(() => {
     if (!navigationState?.key) return;
@@ -35,23 +50,12 @@ export default function RootLayout() {
 
     const rotaRaiz = segment[0] as string | undefined;
 
-    if (!rotaRaiz) return; // transição — ignora sempre
+    if (!rotaRaiz) return;
 
     const estaNaAreaRestrita =
       rotaRaiz === "(tabs)" ||
       rotaRaiz === "admin" ||
       rotaRaiz === "tutor";
-
-    console.log(
-      "[GUARD] segment:",
-      JSON.stringify(segment),
-      "| logado:",
-      !!usuarioLogado,
-      "| restrita:",
-      estaNaAreaRestrita,
-      "| jaRedirecionou:",
-      jaRedirecionouGlobal,
-    );
 
     if (usuarioLogado && !estaNaAreaRestrita && !jaRedirecionouGlobal) {
       jaRedirecionouGlobal = true;
@@ -61,34 +65,33 @@ export default function RootLayout() {
           : usuarioLogado.role === "aluno"
             ? "/(tabs)/home"
             : "/";
-      console.log("[GUARD] 🚀 Boot redirect →", destino);
       router.replace(destino);
       return;
     }
 
     if (!usuarioLogado && estaNaAreaRestrita) {
-      console.log("[GUARD] 🛡️ Deslogado em rota privada → /");
       router.replace("/");
       return;
     }
-
-    console.log("[GUARD] ✅ Sem ação");
   }, [segment, navigationState?.key, usuarioLogado]);
 
   return (
     <LoadingProvider>
       <Slot />
+      {/* Overlay enquanto verifica autenticação no boot */}
       {usuarioLogado === undefined && (
-        <View style={styles.overlay}>
+        <View style={styles.authOverlay}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
       )}
+      {/* Loading de navegação entre páginas */}
+      <NavigationLoading visible={navLoading} />
     </LoadingProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  authOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: Colors.background,
     justifyContent: "center",

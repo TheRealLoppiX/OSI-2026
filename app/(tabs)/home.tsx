@@ -15,8 +15,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { aiService } from "../../src/services/aiService";
-import { newsService } from "../../src/services/newsService";
 import { authService } from "../../src/services/auth";
+import { newsService } from "../../src/services/newsService";
 import { supabase } from "../../src/services/supabase";
 import { Colors } from "../../src/styles/colors";
 
@@ -26,7 +26,7 @@ export default function HomeAluno() {
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState("Estudante");
   const [unreadCount, setUnreadCount] = useState(0);
-  const [salTip, setSalTip] = useState("Carregando dica do Sal...");
+  const [salTip, setSalTip] = useState("Carregando dica da OSIA...");
 
   // Estados para o Modal de Notificações
   const [modalVisible, setModalVisible] = useState(false);
@@ -134,7 +134,7 @@ export default function HomeAluno() {
 
           <TouchableOpacity
             style={styles.iconBtn}
-            onPress={() => router.push("/perfil" as any)}
+            onPress={() => router.push("/(tabs)/perfil")}
           >
             <Ionicons
               name="person-circle-outline"
@@ -206,7 +206,7 @@ export default function HomeAluno() {
       >
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeText}>Bem-vindo ao Portal,</Text>
-          <Text style={styles.userName}>{userName} 👋</Text>
+          <Text style={styles.userName}>{userName} </Text>
         </View>
 
         {/* BOX DO SAL (IA) */}

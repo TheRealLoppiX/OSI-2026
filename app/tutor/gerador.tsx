@@ -58,9 +58,9 @@ export default function GeradorSimulado() {
       <View style={styles.content}>
         <View style={styles.aiBanner}>
           <MaterialCommunityIcons name="auto-fix" size={50} color="#fff" />
-          <Text style={styles.bannerTitle}>Ciel AI</Text>
+          <Text style={styles.bannerTitle}>OSIA</Text>
           <Text style={styles.bannerSub}>
-            Especifique para Ciel como você quer o Simulado
+            Especifique para OSIA como você quer o Simulado
           </Text>
         </View>
 

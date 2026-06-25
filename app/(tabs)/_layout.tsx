@@ -7,10 +7,27 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary, // Cor do ícone quando ativo
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: "#94A3B8",
+        tabBarStyle: {
+          backgroundColor: "#fff",
+          borderTopWidth: 1,
+          borderTopColor: "#F1F5F9",
+          height: 65,
+          paddingBottom: 10,
+          paddingTop: 6,
+          elevation: 12,
+          shadowColor: "#000",
+          shadowOpacity: 0.07,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: -4 },
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+        },
       }}
     >
-      {/* 1. Mapeia a sua tela home.tsx como a aba principal */}
       <Tabs.Screen
         name="home"
         options={{
@@ -21,18 +38,16 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* 2. Mapeia a sua tela escolher.tsx */}
       <Tabs.Screen
         name="escolher"
         options={{
-          title: "Escolher",
+          title: "Simulados",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
+            <Ionicons name="albums-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* 4. Mapeia a sua tela ranking.tsx */}
       <Tabs.Screen
         name="ranking"
         options={{
@@ -43,16 +58,18 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* 5. Mapeia a sua tela perfil.tsx */}
       <Tabs.Screen
         name="perfil"
         options={{
           title: "Perfil",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
+            <Ionicons name="person-circle-outline" size={size} color={color} />
           ),
         }}
       />
+
+      {/* Telas dentro de (tabs) que não devem aparecer na barra */}
+      <Tabs.Screen name="simulado" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -25,7 +25,7 @@ export default function TutorChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      text: "Olá! Sou Ciel. Qual assunto conversaremos hoje?",
+      text: "Olá! Sou OSIA, sua assistente de estudos para a OSI. Qual tema de TI vamos explorar hoje?",
       from: "ai",
     },
   ]);
@@ -72,7 +72,7 @@ export default function TutorChat() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Conversar com o Sal</Text>
+        <Text style={styles.title}>Conversar com OSIA</Text>
       </View>
 
       <FlatList

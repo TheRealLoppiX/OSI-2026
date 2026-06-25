@@ -145,7 +145,7 @@ export default function EscolherSimulado() {
                 size={28}
                 color="#4F46E5"
               />
-              <Text style={styles.tutorTitle}>Ciel</Text>
+              <Text style={styles.tutorTitle}>OSIA</Text>
             </View>
 
             <Text style={styles.tutorSub}>A 'Sabedoria' da OSI</Text>

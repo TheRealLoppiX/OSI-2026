@@ -30,10 +30,9 @@ export default function SimuladoNativo() {
   const [isCorrect, setIsCorrect] = useState(false);
   const [userAnswers, setUserAnswers] = useState<string[]>([]);
 
-  // Estados para a Análise Gráfica do Ciel
   const [loadingIA, setLoadingIA] = useState(false);
   const [modalIAResultVisible, setModalIAResultVisible] = useState(false);
-  const [htmlAnaliseCiel, setHtmlAnaliseCiel] = useState("");
+  const [htmlAnaliseOSIA, setHtmlAnaliseOSIA] = useState("");
 
   useEffect(() => {
     if (dadosIA) {
@@ -101,7 +100,6 @@ export default function SimuladoNativo() {
     }
   };
 
-  // ⚡ AQUI ESTÁ A ARTIMANHA: Forçamos o Ciel a agir como Designer Front-end
   const handleAnalisarDesempenho = async () => {
     const erros = questions.filter(
       (q, i) => userAnswers[i] !== q.resposta_correta,
@@ -121,8 +119,7 @@ export default function SimuladoNativo() {
           `Questão: ${q.enunciado} | Matéria correspondente: ${q.materia || titulo || "Geral"}`,
       );
 
-      // Montamos um super-prompt exigindo que o Ciel retorne APENAS o código HTML/CSS pronto para renderizar gráficos
-      const superPromptDoCiel = `
+      const superPromptOSIA = `
         Você é OSIA, a inteligência artificial avançada da OSI. O estudante acabou de errar as seguintes questões em um simulado: ${JSON.stringify(listaErros)}.
         
         Gere uma ANÁLISE ABSURDAMENTE GRÁFICA e visual usando estritamente código HTML e CSS inline (não use bibliotecas externas de JS, use CSS puro, Flexbox, Grids, etc.).
@@ -137,11 +134,11 @@ export default function SimuladoNativo() {
       `;
 
       const codigoHtmlGerado = await aiService.askGemini(
-        superPromptDoCiel,
+        superPromptOSIA,
         2500,
       );
 
-      setHtmlAnaliseCiel(codigoHtmlGerado);
+      setHtmlAnaliseOSIA(codigoHtmlGerado);
       setModalIAResultVisible(true);
     } catch (e) {
       Alert.alert(
@@ -283,7 +280,7 @@ export default function SimuladoNativo() {
                   color="#4F46E5"
                 />
                 <Text style={styles.iaModalTitle}>
-                  Ciel Analytics • Sistema OSI
+                  OSIA Analytics • Sistema OSI
                 </Text>
                 <TouchableOpacity
                   onPress={() => setModalIAResultVisible(false)}
@@ -293,7 +290,6 @@ export default function SimuladoNativo() {
                 </TouchableOpacity>
               </View>
 
-              {/* WebView injetando dinamicamente a estrutura gráfica gerada pelo Ciel */}
               <View
                 style={{
                   flex: 1,
@@ -304,7 +300,7 @@ export default function SimuladoNativo() {
               >
                 <WebView
                   originWhitelist={["*"]}
-                  source={{ html: htmlAnaliseCiel }}
+                  source={{ html: htmlAnaliseOSIA }}
                   style={{ flex: 1, backgroundColor: "#0F172A" }}
                   javaScriptEnabled={true}
                   domStorageEnabled={true}
