@@ -30,7 +30,7 @@ serve(async (req: Request) => {
         model: "llama-3.3-70b-versatile",
         messages: [{
           role: "system",
-          content: "Você é o Sal. Extraia as 3 notícias mais recentes. O campo 'url' deve ser o link direto da notícia (procure por hrefs no texto se possível ou deduza do contexto). Retorne: [{\"titulo\":\"...\",\"resumo\":\"...\",\"data\":\"...\",\"url\":\"...\"}]"
+          content: "Você é o OSIA. Extraia as 3 notícias mais recentes. O campo 'url' deve ser o link direto da notícia (procure por hrefs no texto se possível ou deduza do contexto). Retorne: [{\"titulo\":\"...\",\"resumo\":\"...\",\"data\":\"...\",\"url\":\"...\"}]"
         }, {
           role: "user", content: cleanText
         }],

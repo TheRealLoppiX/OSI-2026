@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { authService } from "../../src/services/auth";
 import { supabase } from "../../src/services/supabase";
@@ -16,6 +16,8 @@ import { Colors } from "../../src/styles/colors";
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ alunos: 0, simulados: 0, questoes: 0 });
   const [loading, setLoading] = useState(true);
+  const [apiUrl, setApiUrl] = useState("");
+  const [importing, setImporting] = useState(false);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -53,7 +55,7 @@ export default function AdminDashboard() {
         text: "Sair",
         style: "destructive",
         onPress: async () => {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut().catch(() => {});
           await authService.logout();
           router.replace("/");
         },
@@ -68,10 +70,14 @@ export default function AdminDashboard() {
           <Ionicons name="log-out-outline" size={26} color={Colors.secondary} />
           <Text style={styles.logoutText}>SAIR</Text>
         </TouchableOpacity>
+
         <Text style={styles.title}>Painel Docente</Text>
-        <TouchableOpacity onPress={fetchStats}>
-          <Ionicons name="refresh-circle" size={30} color={Colors.primary} />
-        </TouchableOpacity>
+
+        <View style={styles.rightHeaderActions}>
+          <TouchableOpacity onPress={fetchStats}>
+            <Ionicons name="refresh-circle" size={30} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -104,6 +110,28 @@ export default function AdminDashboard() {
 
           <TouchableOpacity
             style={styles.menuItem}
+            onPress={() => router.push("/admin/cadastrar-docente" as any)}
+          >
+            <View
+              style={[styles.iconBox, { backgroundColor: "#10B981" }]} // Cor verde esmeralda para destacar
+            >
+              <Ionicons name="person-add" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.menuText}>Cadastrar Docente</Text>
+              <Text style={styles.menuSub}>
+                Adicionar novo administrador à OSI
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={Colors.textLight}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.menuItem}
             onPress={() => router.push("/admin/gerenciar" as any)}
           >
             <View style={[styles.iconBox, { backgroundColor: Colors.primary }]}>
@@ -120,7 +148,6 @@ export default function AdminDashboard() {
             />
           </TouchableOpacity>
 
-          {/* BOTÃO CORRIGIDO PARA NAVEGAR PARA A TELA */}
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => router.push("/admin/notificar" as any)}
@@ -177,6 +204,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9",
   },
+  rightHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   logoutBtn: { alignItems: "center" },
   logoutText: {
     fontSize: 10,
@@ -232,4 +263,34 @@ const styles = StyleSheet.create({
   },
   menuText: { fontSize: 16, fontWeight: "bold", color: Colors.text },
   menuSub: { fontSize: 12, color: Colors.textLight },
+  apiSection: {
+    backgroundColor: "#fff",
+    padding: 20,
+    marginHorizontal: 20,
+    marginTop: 20,
+    borderRadius: 22,
+    elevation: 2,
+  },
+  apiTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: Colors.text,
+    marginBottom: 10,
+  },
+  apiInput: {
+    backgroundColor: "#F8FAFC",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginBottom: 10,
+    fontSize: 13,
+  },
+  apiButton: {
+    backgroundColor: Colors.primary,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  apiButtonText: { color: "#fff", fontWeight: "bold", fontSize: 14 },
 });

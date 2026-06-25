@@ -26,7 +26,7 @@ export default function ListaUsuarios() {
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [editNome, setEditNome] = useState("");
   const [editUser, setEditUser] = useState("");
-  const [novaSenha, setNovaSenha] = useState(""); // Campo para resetar senha
+  const [novaSenha, setNovaSenha] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [updating, setUpdating] = useState(false);
 
@@ -58,7 +58,6 @@ export default function ListaUsuarios() {
 
     setUpdating(true);
 
-    // Prepara os dados para o update
     const updatePayload: any = {
       nome: editNome,
       usuario: editUser.toLowerCase().trim(),
@@ -116,7 +115,8 @@ export default function ListaUsuarios() {
             >
               <Image
                 source={{
-                  uri: item.avatar_url ||
+                  uri:
+                    item.avatar_url ||
                     `https://api.dicebear.com/7.x/avataaars/png?seed=${item.usuario}`,
                 }}
                 style={styles.avatar}
