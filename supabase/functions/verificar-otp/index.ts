@@ -36,9 +36,14 @@ serve(async (req: Request) => {
 
     if (!verificacao) return json({ error: "Código inválido ou expirado." }, 401);
 
-    const { nome, usuario, instituicao, senhaCriptografada } = verificacao.dados;
+    const dados = verificacao.dados as any;
+    const { nome, usuario, instituicao, senhaCriptografada } = dados;
 
-    // Cria usuário no banco
+    if (!nome || !usuario || !instituicao || !senhaCriptografada) {
+      return json({ error: "Dados de cadastro corrompidos. Refaça o cadastro." }, 422);
+    }
+
+    // Cria usuário no banco (sem role — o app gerencia isso em memória)
     const { data: newUser, error: insertError } = await supabase
       .from("usuarios")
       .insert({
@@ -48,20 +53,20 @@ serve(async (req: Request) => {
         instituicao,
         senha: senhaCriptografada,
         pontuacao: 0,
-        role: "aluno",
       })
       .select()
       .single();
 
     if (insertError) {
       if (insertError.code === "23505") return json({ error: "Usuário ou e-mail já cadastrado." }, 409);
-      throw insertError;
+      return json({ error: `Erro ao criar conta: ${insertError.message}` }, 500);
     }
 
     // Remove registro de verificação
     await supabase.from("verificacao_email").delete().eq("id", verificacao.id);
 
-    return json({ user: newUser });
+    // Inclui role no retorno (gerenciado pelo app, não pelo banco)
+    return json({ user: { ...newUser, role: "aluno" } });
   } catch (err: any) {
     return json({ error: err.message }, 500);
   }
