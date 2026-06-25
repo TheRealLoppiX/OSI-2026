@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -113,9 +114,13 @@ export default function ListaUsuarios() {
               style={styles.userCard}
               onPress={() => openEdit(item)}
             >
-              <View style={styles.avatarCircle}>
-                <Ionicons name="person" size={20} color={Colors.primary} />
-              </View>
+              <Image
+                source={{
+                  uri: item.avatar_url ||
+                    `https://api.dicebear.com/7.x/avataaars/png?seed=${item.usuario}`,
+                }}
+                style={styles.avatar}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={styles.userName}>{item.usuario}</Text>
                 <Text style={styles.userSchool}>
@@ -178,7 +183,7 @@ export default function ListaUsuarios() {
               value={novaSenha}
               onChangeText={setNovaSenha}
               placeholder="Digite a nova senha aqui"
-              secureTextEntry={false} // Professor precisa ver o que está definindo pro aluno
+              secureTextEntry={true}
             />
 
             <View style={styles.footerRow}>
@@ -233,13 +238,13 @@ const styles = StyleSheet.create({
     gap: 15,
     elevation: 2,
   },
-  avatarCircle: {
+  avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
     backgroundColor: "#EEF2FF",
-    justifyContent: "center",
-    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   editIcon: {
     backgroundColor: Colors.primary,

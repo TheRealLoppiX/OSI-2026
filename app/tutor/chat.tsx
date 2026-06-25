@@ -47,8 +47,7 @@ export default function TutorChat() {
     setLoading(true);
 
     try {
-      // Usando seu aiService para pegar a resposta
-      const response = await aiService.getTutorTip(userPrompt);
+      const response = await aiService.askGemini(userPrompt, 800);
 
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),

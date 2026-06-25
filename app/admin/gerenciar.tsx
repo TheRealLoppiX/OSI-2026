@@ -25,6 +25,16 @@ export default function GerenciarSimulados() {
   const [novaMateria, setNovaMateria] = useState("");
   const [novaUrl, setNovaUrl] = useState("");
 
+  // Estados para Vincular Questões do Banco
+  const [modalQuestoesVisible, setModalQuestoesVisible] = useState(false);
+  const [questoesBanco, setQuestoesBanco] = useState<any[]>([]);
+  const [questoesSelecionadas, setQuestoesSelecionadas] = useState<number[]>(
+    [],
+  );
+  const [simuladoSelecionadoId, setSimuladoSelecionadoId] = useState<any>(null);
+  const [loadingQuestoes, setLoadingQuestoes] = useState(false);
+  const [salvandoVinculo, setSalvandoVinculo] = useState(false);
+
   const fetchSimulados = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -59,6 +69,62 @@ export default function GerenciarSimulados() {
     }
   };
 
+  // 1. Abre o modal de questões e puxa os registros existentes do banco
+  const abrirVinculoQuestoes = async (simulado: any) => {
+    setSimuladoSelecionadoId(simulado.id);
+    setModalQuestoesVisible(true);
+    setLoadingQuestoes(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("questoes")
+        .select("id, enunciado")
+        .order("id", { ascending: false });
+
+      if (!error && data) {
+        setQuestoesBanco(data);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar banco de questões", err);
+    } finally {
+      setLoadingQuestoes(false);
+    }
+  };
+
+  // 2. Controla o liga/desliga do checkbox de IDs
+  const handleToggleSelect = (id: number) => {
+    if (questoesSelecionadas.includes(id)) {
+      setQuestoesSelecionadas(questoesSelecionadas.filter((qId) => qId !== id));
+    } else {
+      setQuestoesSelecionadas([...questoesSelecionadas, id]);
+    }
+  };
+
+  // 3. Grava o array atualizado de ids selecionados na linha do simulado
+  const handleSalvarQuestoesNoSimulado = async () => {
+    try {
+      setSalvandoVinculo(true);
+
+      const { error } = await supabase
+        .from("simulados")
+        .update({
+          questoes_ids: questoesSelecionadas,
+          total_questoes: questoesSelecionadas.length,
+        })
+        .eq("id", simuladoSelecionadoId);
+
+      if (error) throw error;
+
+      Alert.alert("Sucesso!", "Banco de questões vinculado ao simulado.");
+      setModalQuestoesVisible(false);
+      fetchSimulados(); // Recarrega a listagem de simulados da tela principal
+    } catch (error: any) {
+      Alert.alert("Erro ao Vincular", error.message);
+    } finally {
+      setSalvandoVinculo(false);
+    }
+  };
+
   useEffect(() => {
     fetchSimulados();
   }, []);
@@ -75,7 +141,7 @@ export default function GerenciarSimulados() {
         </TouchableOpacity>
       </View>
 
-      {/* MODAL PARA NOVO SIMULADO */}
+      {/* MODAL 1: PARA CRIAR NOVO SIMULADO */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -117,6 +183,78 @@ export default function GerenciarSimulados() {
         </View>
       </Modal>
 
+      {/* MODAL 2: SELECIONAR QUESTÕES DO BANCO */}
+      <Modal visible={modalQuestoesVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: "80%" }]}>
+            <Text style={styles.modalTitle}>Vincular Questões Cadastradas</Text>
+            <Text style={styles.subtextModal}>
+              Marque as questões que farão parte deste simulado (
+              {questoesSelecionadas.length} selecionadas).
+            </Text>
+
+            {loadingQuestoes ? (
+              <ActivityIndicator
+                size="large"
+                color={Colors.primary}
+                style={{ marginVertical: 30 }}
+              />
+            ) : (
+              <FlatList
+                data={questoesBanco}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={{ paddingBottom: 15 }}
+                renderItem={({ item }) => {
+                  const isChecked = questoesSelecionadas.includes(item.id);
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.questaoRow,
+                        isChecked && styles.questaoRowSelected,
+                      ]}
+                      onPress={() => handleToggleSelect(item.id)}
+                    >
+                      <Ionicons
+                        name={isChecked ? "checkbox" : "square-outline"}
+                        size={22}
+                        color={isChecked ? Colors.primary : "#94A3B8"}
+                      />
+                      <Text style={styles.questaoTextoForm} numberOfLines={2}>
+                        {item.enunciado}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 15 }}>
+              <TouchableOpacity
+                style={[styles.btn, { backgroundColor: "#ccc" }]}
+                onPress={() => setModalQuestoesVisible(false)}
+                disabled={salvandoVinculo}
+              >
+                <Text>Fechar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btn, { backgroundColor: Colors.primary }]}
+                onPress={handleSalvarQuestoesNoSimulado}
+                disabled={salvandoVinculo}
+              >
+                {salvandoVinculo ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                    Salvar Vínculos
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* LISTA PRINCIPAL DE SIMULADOS */}
       {loading ? (
         <ActivityIndicator
           size="large"
@@ -136,14 +274,8 @@ export default function GerenciarSimulados() {
                   {item.materia} {item.url_google_forms && "🔗"}
                 </Text>
               </View>
-              <TouchableOpacity
-                onPress={() =>
-                  router.push({
-                    pathname: "/admin/cadastrar-questao",
-                    params: { simuladoId: item.id },
-                  } as any)
-                }
-              >
+              {/* Botão modificado para abrir a lista do banco de questões */}
+              <TouchableOpacity onPress={() => abrirVinculoQuestoes(item)}>
                 <Ionicons name="add-circle" size={34} color={Colors.primary} />
               </TouchableOpacity>
             </View>
@@ -202,7 +334,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: { backgroundColor: "#fff", padding: 25, borderRadius: 20 },
-  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 20 },
+  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 5 },
+  subtextModal: { fontSize: 13, color: "#64748B", marginBottom: 15 },
   input: {
     borderWidth: 1,
     borderColor: "#ddd",
@@ -210,5 +343,31 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 15,
   },
-  btn: { flex: 1, padding: 15, borderRadius: 10, alignItems: "center" },
+  btn: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  questaoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    marginBottom: 8,
+    gap: 10,
+    backgroundColor: "#FAFAFA",
+  },
+  questaoRowSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: "#EFF6FF",
+  },
+  questaoTextoForm: {
+    flex: 1,
+    fontSize: 14,
+    color: "#334155",
+  },
 });

@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -10,7 +10,6 @@ import {
   View,
 } from "react-native";
 import { authService } from "../src/services/auth";
-import { supabase } from "../src/services/supabase";
 import { Colors } from "../src/styles/colors";
 
 export default function Login() {
@@ -18,52 +17,27 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        authService.getUser().then((storedUser) => {
-          if (storedUser) {
-            router.replace(storedUser.role === "admin" ? "/admin" : "/(tabs)");
-          }
-        });
-      }
-    });
-    authService.getUser().then((session) => {
-      if (session) {
-        router.replace(session.role === "admin" ? "/admin" : "/(tabs)");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
   const handleLogin = async () => {
-    if (!user || !password) return Alert.alert("Aviso", "Preencha tudo!");
-    setLoading(true);
-
-    // Login Admin Rápido
-    if (user === "admin" && password === "osi2026") {
-      await authService.saveUser({ usuario: "Professor", role: "admin" });
-      router.replace("/admin");
+    if (!user || !password) {
+      Alert.alert("Atenção", "Preencha todos os campos.");
       return;
     }
 
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("*")
-      .eq("usuario", user.toLowerCase().trim())
-      .eq("senha", password)
-      .single();
+    try {
+      setLoading(true);
 
-    setLoading(false);
+      // Usando o authService correto
+      const loggedUser = await authService.logarAluno(user, password);
 
-    if (data) {
-      await authService.saveUser({ ...data, role: "user" });
-      router.replace("/(tabs)");
-    } else {
-      Alert.alert("Erro", "Usuário ou senha incorretos.");
+      // Apontando para o '/(tabs)/home' após o login com sucesso
+      router.replace(loggedUser.role === "admin" ? "/admin" : "/(tabs)/home");
+    } catch (error: any) {
+      Alert.alert(
+        "Erro no Login",
+        error.message || "Usuário ou senha inválidos.",
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,6 +51,7 @@ export default function Login() {
         value={user}
         onChangeText={setUser}
         autoCapitalize="none"
+        autoCorrect={false}
       />
       <TextInput
         style={styles.input}
@@ -100,7 +75,7 @@ export default function Login() {
 
       <TouchableOpacity
         style={styles.signupBtn}
-        onPress={() => router.push("./cadastro")}
+        onPress={() => router.push("/cadastro")}
       >
         <Text style={styles.signupText}>
           Ainda não tem conta?{" "}
