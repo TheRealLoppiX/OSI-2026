@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -35,8 +37,18 @@ export default function Cadastro() {
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSenha, setShowSenha] = useState(false);
+  const [instituicoes, setInstituicoes] = useState<any[]>([]);
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const otpRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    supabase
+      .from("instituicoes")
+      .select("nome, sigla")
+      .order("nome")
+      .then(({ data }) => setInstituicoes(data || []));
+  }, []);
 
   const handleEnviarCodigo = async () => {
     const validacao = cadastroSchema.safeParse({ nome, email, usuario, instituicao, senha });
@@ -219,13 +231,61 @@ export default function Cadastro() {
           />
 
           <Text style={[styles.label, { color: colors.text }]}>Instituição / Escola</Text>
-          <TextInput
-            style={inputStyle}
-            placeholder="Ex: IF Sertão-PE"
-            placeholderTextColor={colors.textLight}
-            value={instituicao}
-            onChangeText={setInstituicao}
-          />
+          {instituicoes.length > 0 ? (
+            <>
+              <TouchableOpacity
+                style={[inputStyle, styles.pickerBtn]}
+                onPress={() => setPickerVisible(true)}
+              >
+                <Text style={{ color: instituicao ? colors.text : colors.textLight, fontSize: 15, flex: 1 }}>
+                  {instituicao || "Selecione sua instituição"}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={colors.textLight} />
+              </TouchableOpacity>
+
+              <Modal visible={pickerVisible} transparent animationType="fade">
+                <TouchableOpacity
+                  style={styles.pickerOverlay}
+                  activeOpacity={1}
+                  onPress={() => setPickerVisible(false)}
+                >
+                  <View style={[styles.pickerSheet, { backgroundColor: colors.card }]}>
+                    <Text style={[styles.pickerTitle, { color: colors.text }]}>Selecione a Instituição</Text>
+                    <FlatList
+                      data={instituicoes}
+                      keyExtractor={(item) => item.nome}
+                      renderItem={({ item }) => (
+                        <TouchableOpacity
+                          style={[
+                            styles.pickerItem,
+                            { borderBottomColor: colors.border },
+                            instituicao === item.nome && { backgroundColor: colors.primary + "15" },
+                          ]}
+                          onPress={() => { setInstituicao(item.nome); setPickerVisible(false); }}
+                        >
+                          <Text style={[styles.pickerItemNome, { color: colors.text }]}>{item.nome}</Text>
+                          {item.sigla ? (
+                            <Text style={[styles.pickerItemSigla, { color: colors.textLight }]}>{item.sigla}</Text>
+                          ) : null}
+                          {instituicao === item.nome && (
+                            <Ionicons name="checkmark" size={18} color={colors.primary} />
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    />
+                  </View>
+                </TouchableOpacity>
+              </Modal>
+            </>
+          ) : (
+            <TextInput
+              style={inputStyle}
+              placeholder="Ex: IF Sertão-PE"
+              placeholderTextColor={colors.textLight}
+              value={instituicao}
+              onChangeText={setInstituicao}
+            />
+          )}
 
           <Text style={[styles.label, { color: colors.text }]}>Senha</Text>
           <View style={styles.senhaRow}>
@@ -326,4 +386,17 @@ const styles = StyleSheet.create({
   },
   resendBtn: { marginTop: 20, alignItems: "center" },
   resendText: { fontSize: 14 },
+  pickerBtn: { flexDirection: "row", alignItems: "center" },
+  pickerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  pickerSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "60%" },
+  pickerTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 14 },
+  pickerItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    gap: 10,
+  },
+  pickerItemNome: { flex: 1, fontSize: 14 },
+  pickerItemSigla: { fontSize: 12 },
 });

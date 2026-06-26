@@ -86,6 +86,7 @@ export default function AdminDashboard() {
           {[
             { route: "/admin/cadastrar-docente", icon: "person-add", color: "#10B981", title: "Cadastrar Docente", sub: "Adicionar novo administrador à OSI" },
             { route: "/admin/gerenciar", icon: "create", color: colors.primary, title: "Conteúdo OSI", sub: "Gerenciar Simulados e Questões" },
+            { route: "/admin/instituicoes", icon: "school", color: "#7C3AED", title: "Instituições", sub: "Gerenciar escolas do processo seletivo" },
             { route: "/admin/notificar", icon: "megaphone", color: ACCENT, title: "Enviar Notificação", sub: "Disparar alerta para os alunos" },
             { route: "/admin/usuarios", icon: "list", color: SECONDARY, title: "Lista de Inscritos", sub: "Ver e monitorar alunos" },
           ].map((item) => (

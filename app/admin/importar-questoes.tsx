@@ -1,4 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -14,32 +16,64 @@ import {
 import { useTheme } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
 
+type Modo = "url" | "xlsx";
+
 export default function ImportarQuestoes() {
   const { colors } = useTheme();
+  const [modo, setModo] = useState<Modo>("url");
   const [url, setUrl] = useState("");
+  const [base64, setBase64] = useState<string | null>(null);
+  const [nomeArquivo, setNomeArquivo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any[] | null>(null);
   const [importando, setImportando] = useState(false);
 
-  const handlePreview = async () => {
-    if (!url.trim()) return Alert.alert("Atenção", "Cole a URL da planilha.");
+  const resetPreview = () => setPreview(null);
+
+  const handleSelecionarXlsx = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setNomeArquivo(asset.name);
+    setBase64(null);
+    resetPreview();
     setLoading(true);
-    setPreview(null);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "importar-planilha",
-        {
-          body: { url: url.trim(), apenasPreview: true },
-        },
-      );
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-      setPreview(data.questoes);
+      const b64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      setBase64(b64);
+      await chamarPreview({ base64: b64 });
     } catch (err: any) {
       Alert.alert("Erro", err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePreviewUrl = async () => {
+    if (!url.trim()) return Alert.alert("Atenção", "Cole a URL da planilha.");
+    setLoading(true);
+    resetPreview();
+    try {
+      await chamarPreview({ url: url.trim() });
+    } catch (err: any) {
+      Alert.alert("Erro", err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const chamarPreview = async (body: object) => {
+    const { data, error } = await supabase.functions.invoke("importar-planilha", {
+      body: { ...body, apenasPreview: true },
+    });
+    if (error) throw new Error(error.message);
+    if (data?.error) throw new Error(data.error);
+    setPreview(data.questoes);
   };
 
   const handleImportar = async () => {
@@ -54,17 +88,21 @@ export default function ImportarQuestoes() {
           onPress: async () => {
             setImportando(true);
             try {
+              const body =
+                modo === "xlsx" && base64
+                  ? { base64, apenasPreview: false }
+                  : { url: url.trim(), apenasPreview: false };
+
               const { data, error } = await supabase.functions.invoke(
                 "importar-planilha",
-                {
-                  body: { url: url.trim(), apenasPreview: false },
-                },
+                { body },
               );
               if (error) throw new Error(error.message);
               if (data?.error) throw new Error(data.error);
+              const puladas = data.puladas > 0 ? ` ${data.puladas} já existiam e foram ignoradas.` : "";
               Alert.alert(
-                "Sucesso!",
-                `${data.importadas} questões importadas.`,
+                "Importação concluída",
+                `${data.importadas} questões importadas.${puladas}`,
                 [{ text: "OK", onPress: () => router.back() }],
               );
             } catch (err: any) {
@@ -76,6 +114,15 @@ export default function ImportarQuestoes() {
         },
       ],
     );
+  };
+
+  const trocarModo = (novoModo: Modo) => {
+    if (novoModo === modo) return;
+    setModo(novoModo);
+    resetPreview();
+    setBase64(null);
+    setNomeArquivo(null);
+    setUrl("");
   };
 
   return (
@@ -98,30 +145,50 @@ export default function ImportarQuestoes() {
         <View style={{ width: 24 }} />
       </View>
 
-      <View
-        style={[
-          styles.infoCard,
-          { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" },
-        ]}
-      >
+      {/* Toggle de modo */}
+      <View style={[styles.toggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.toggleBtn, modo === "url" && { backgroundColor: colors.primary }]}
+          onPress={() => trocarModo("url")}
+        >
+          <Ionicons name="link-outline" size={15} color={modo === "url" ? "#fff" : colors.textLight} />
+          <Text style={[styles.toggleText, { color: modo === "url" ? "#fff" : colors.textLight }]}>
+            Google Sheets
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleBtn, modo === "xlsx" && { backgroundColor: colors.primary }]}
+          onPress={() => trocarModo("xlsx")}
+        >
+          <Ionicons name="document-outline" size={15} color={modo === "xlsx" ? "#fff" : colors.textLight} />
+          <Text style={[styles.toggleText, { color: modo === "xlsx" ? "#fff" : colors.textLight }]}>
+            Arquivo .xlsx
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Card de instruções */}
+      <View style={[styles.infoCard, { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }]}>
         <View style={styles.infoHeader}>
-          <Ionicons
-            name="information-circle"
-            size={20}
-            color={colors.primary}
-          />
+          <Ionicons name="information-circle" size={20} color={colors.primary} />
           <Text style={[styles.infoTitle, { color: colors.primary }]}>
-            Como usar
+            {modo === "url" ? "Como usar (Google Sheets)" : "Como usar (xlsx)"}
           </Text>
         </View>
-        <Text style={styles.infoText}>
-          1. Crie uma planilha no Google Sheets com as colunas na ordem abaixo.
-          {"\n"}
-          2. Defina o acesso como{" "}
-          <Text style={styles.bold}>"Qualquer pessoa com o link pode ver"</Text>
-          .{"\n"}
-          3. Cole o link aqui e clique em Pré-visualizar.
-        </Text>
+        {modo === "url" ? (
+          <Text style={styles.infoText}>
+            1. Crie uma planilha no Google Sheets com as colunas na ordem abaixo.{"\n"}
+            2. Defina o acesso como{" "}
+            <Text style={styles.bold}>"Qualquer pessoa com o link pode ver"</Text>.{"\n"}
+            3. Cole o link aqui e clique em Pré-visualizar.
+          </Text>
+        ) : (
+          <Text style={styles.infoText}>
+            1. Prepare um arquivo <Text style={styles.bold}>.xlsx</Text> com as colunas na ordem abaixo.{"\n"}
+            2. A linha 1 é o cabeçalho (ignorada). Os dados começam na linha 2.{"\n"}
+            3. Toque em "Selecionar arquivo" para importar.
+          </Text>
+        )}
         <View style={styles.colunasList}>
           {[
             ["A", "enunciado", true],
@@ -135,14 +202,10 @@ export default function ImportarQuestoes() {
             ["I", "materia", false],
             ["J", "dificuldade", false],
             ["K", "referencias", false],
+            ["L", "imagem_url", false],
           ].map(([col, nome, obrig]) => (
             <View key={String(col)} style={styles.colunaRow}>
-              <Text
-                style={[
-                  styles.colunaLetra,
-                  { backgroundColor: colors.primary },
-                ]}
-              >
+              <Text style={[styles.colunaLetra, { backgroundColor: colors.primary }]}>
                 {col}
               </Text>
               <Text style={styles.colunaLabel}>{nome as string}</Text>
@@ -152,48 +215,79 @@ export default function ImportarQuestoes() {
         </View>
       </View>
 
-      <Text style={[styles.label, { color: colors.text }]}>
-        URL da Planilha
-      </Text>
-      <TextInput
-        style={[
-          styles.input,
-          {
-            backgroundColor: colors.inputBg,
-            borderColor: colors.border,
-            color: colors.text,
-          },
-        ]}
-        placeholder="https://docs.google.com/spreadsheets/d/..."
-        placeholderTextColor={colors.textLight}
-        value={url}
-        onChangeText={setUrl}
-        autoCapitalize="none"
-        autoCorrect={false}
-        multiline
-      />
+      {/* Entrada conforme o modo */}
+      {modo === "url" ? (
+        <>
+          <Text style={[styles.label, { color: colors.text }]}>URL da Planilha</Text>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: colors.inputBg,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
+            placeholder="https://docs.google.com/spreadsheets/d/..."
+            placeholderTextColor={colors.textLight}
+            value={url}
+            onChangeText={(v) => { setUrl(v); resetPreview(); }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            multiline
+          />
+          <TouchableOpacity
+            style={[
+              styles.btnPreview,
+              { borderColor: colors.primary, backgroundColor: colors.card },
+              loading && { opacity: 0.7 },
+            ]}
+            onPress={handlePreviewUrl}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="eye-outline" size={18} color={colors.primary} />
+                <Text style={[styles.btnPreviewText, { color: colors.primary }]}>
+                  Pré-visualizar questões
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </>
+      ) : (
+        <TouchableOpacity
+          style={[
+            styles.btnXlsx,
+            { borderColor: colors.primary, backgroundColor: colors.card },
+            loading && { opacity: 0.7 },
+          ]}
+          onPress={handleSelecionarXlsx}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <>
+              <Ionicons name="folder-open-outline" size={20} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.btnPreviewText, { color: colors.primary }]}>
+                  {nomeArquivo ? nomeArquivo : "Selecionar arquivo .xlsx"}
+                </Text>
+                {nomeArquivo && (
+                  <Text style={[styles.trocarArquivo, { color: colors.textLight }]}>
+                    Toque para trocar
+                  </Text>
+                )}
+              </View>
+            </>
+          )}
+        </TouchableOpacity>
+      )}
 
-      <TouchableOpacity
-        style={[
-          styles.btnPreview,
-          { borderColor: colors.primary, backgroundColor: colors.card },
-          loading && { opacity: 0.7 },
-        ]}
-        onPress={handlePreview}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={colors.primary} />
-        ) : (
-          <>
-            <Ionicons name="eye-outline" size={18} color={colors.primary} />
-            <Text style={[styles.btnPreviewText, { color: colors.primary }]}>
-              Pré-visualizar questões
-            </Text>
-          </>
-        )}
-      </TouchableOpacity>
-
+      {/* Preview */}
       {preview !== null && (
         <View style={styles.previewSection}>
           <View style={styles.previewHeader}>
@@ -213,11 +307,7 @@ export default function ImportarQuestoes() {
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <>
-                  <Ionicons
-                    name="cloud-upload-outline"
-                    size={16}
-                    color="#fff"
-                  />
+                  <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
                   <Text style={styles.btnImportarText}>Importar tudo</Text>
                 </>
               )}
@@ -236,6 +326,11 @@ export default function ImportarQuestoes() {
                 <Text style={[styles.questaoNum, { color: colors.textLight }]}>
                   #{i + 1}
                 </Text>
+                {q.duplicata && (
+                  <Text style={[styles.questaoTag, { backgroundColor: "#FEF9C3", color: "#92400E" }]}>
+                    já existe
+                  </Text>
+                )}
                 {q.materia && (
                   <Text style={styles.questaoTag}>{q.materia}</Text>
                 )}
@@ -304,6 +399,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   title: { fontSize: 18, fontWeight: "bold" },
+  toggleRow: {
+    flexDirection: "row",
+    margin: 20,
+    marginBottom: 0,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  toggleBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+  },
+  toggleText: { fontSize: 13, fontWeight: "600" },
   infoCard: { margin: 20, borderRadius: 16, padding: 18, borderWidth: 1 },
   infoHeader: {
     flexDirection: "row",
@@ -358,7 +470,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 2,
   },
+  btnXlsx: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    margin: 20,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 2,
+  },
   btnPreviewText: { fontWeight: "bold", fontSize: 15 },
+  trocarArquivo: { fontSize: 11, marginTop: 2 },
   previewSection: { paddingHorizontal: 20 },
   previewHeader: {
     flexDirection: "row",

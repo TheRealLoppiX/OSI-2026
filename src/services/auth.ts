@@ -6,6 +6,10 @@ import { supabase } from "./supabase";
 
 const USER_KEY = "@OSI_User";
 
+// React Native não expõe crypto.getRandomValues para o bcryptjs puro,
+// então instalamos um fallback manual. Não é CSPRNG, mas é suficiente
+// para gerar salts em ambiente mobile onde a entropia do dispositivo
+// não é acessível pela Web Crypto API padrão.
 bcrypt.setRandomFallback((len) => {
   const array = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
@@ -165,13 +169,67 @@ export const authService = {
 
   async adicionarXP(userId: string, xp: number) {
     try {
-      const user = await this.getUser();
-      if (!user) return;
-      const novosPontos = (user.pontuacao || 0) + xp;
+      // Lê do banco em vez do cache local para não sobrescrever XP ganho
+      // em outra sessão ou dispositivo entre o início e o fim do simulado.
+      const { data: atual } = await supabase
+        .from("usuarios")
+        .select("pontuacao")
+        .eq("id", userId)
+        .single();
+
+      const novosPontos = (atual?.pontuacao || 0) + xp;
       await supabase.from("usuarios").update({ pontuacao: novosPontos }).eq("id", userId);
-      await this.saveUser({ ...user, pontuacao: novosPontos });
+
+      const user = await this.getUser();
+      if (user) await this.saveUser({ ...user, pontuacao: novosPontos });
     } catch (e) {
       console.error("Erro ao adicionar XP", e);
+    }
+  },
+
+  async salvarTentativa(dados: { simuladoId?: string; titulo: string; acertos: number; total: number }) {
+    try {
+      const user = await this.getUser();
+      if (!user?.id) return;
+
+      await supabase.from("tentativas").insert([{
+        usuario_id: user.id,
+        simulado_id: dados.simuladoId || null,
+        titulo: dados.titulo,
+        acertos: dados.acertos,
+        total: dados.total,
+      }]);
+
+      await this.atualizarStreak(user.id);
+    } catch (e) {
+      console.error("Erro ao salvar tentativa", e);
+    }
+  },
+
+  async atualizarStreak(userId: string) {
+    try {
+      const { data } = await supabase
+        .from("usuarios")
+        .select("ultimo_acesso, streak_dias")
+        .eq("id", userId)
+        .single();
+
+      const hoje = new Date().toISOString().split("T")[0];
+      // Mesma data: streak já contabilizado hoje, não incrementa
+      if (data?.ultimo_acesso === hoje) return;
+
+      const ontem = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      const novoStreak = data?.ultimo_acesso === ontem ? (data.streak_dias || 0) + 1 : 1;
+
+      await supabase
+        .from("usuarios")
+        .update({ streak_dias: novoStreak, ultimo_acesso: hoje })
+        .eq("id", userId);
+
+      const user = await this.getUser();
+      if (user) await this.saveUser({ ...user, streak_dias: novoStreak, ultimo_acesso: hoje });
+    } catch (e) {
+      console.error("Erro ao atualizar streak", e);
     }
   },
 

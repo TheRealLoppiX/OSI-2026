@@ -8,6 +8,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -21,6 +22,14 @@ export default function EscolherSimulado() {
   const [simulados, setSimulados] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tutorVisible, setTutorVisible] = useState(false);
+  const [busca, setBusca] = useState("");
+
+  const simuladosFiltrados = busca.trim()
+    ? simulados.filter((s) =>
+        s.titulo?.toLowerCase().includes(busca.toLowerCase()) ||
+        s.materia?.toLowerCase().includes(busca.toLowerCase())
+      )
+    : simulados;
 
   useEffect(() => {
     fetchSimulados();
@@ -28,7 +37,10 @@ export default function EscolherSimulado() {
 
   const fetchSimulados = async () => {
     try {
-      const { data, error } = await supabase.from("simulados").select("*");
+      const { data, error } = await supabase
+        .from("simulados")
+        .select("*")
+        .order("created_at", { ascending: false });
       if (!error) setSimulados(data || []);
     } finally {
       setLoading(false);
@@ -59,11 +71,27 @@ export default function EscolherSimulado() {
         <Text style={[styles.title, { color: colors.text }]}>Simulados OSI</Text>
       </View>
 
+      <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Ionicons name="search-outline" size={18} color={colors.textLight} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.text }]}
+          placeholder="Buscar por título ou matéria..."
+          placeholderTextColor={colors.textLight}
+          value={busca}
+          onChangeText={setBusca}
+        />
+        {busca.length > 0 && (
+          <TouchableOpacity onPress={() => setBusca("")}>
+            <Ionicons name="close-circle" size={18} color={colors.textLight} />
+          </TouchableOpacity>
+        )}
+      </View>
+
       {loading ? (
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
       ) : (
         <FlatList
-          data={simulados}
+          data={simuladosFiltrados}
           keyExtractor={(item) => item.id.toString()}
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
@@ -180,6 +208,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   title: { fontSize: 20, fontWeight: "bold" },
+  searchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    margin: 16,
+    marginBottom: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 8,
+  },
+  searchInput: { flex: 1, fontSize: 14 },
   columnWrapper: { gap: 12 },
   card: {
     flex: 1,

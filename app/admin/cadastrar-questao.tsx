@@ -6,15 +6,26 @@ import { supabase } from "../../src/services/supabase";
 import { useTheme } from "../../src/context/ThemeContext";
 
 export default function CadastrarQuestao() {
-  const { simuladoId } = useLocalSearchParams();
+  const { simuladoId, questaoId, questaoData } = useLocalSearchParams();
   const { colors } = useTheme();
-  const [enunciado, setEnunciado] = useState("");
-  const [materia, setMateria] = useState("");
-  const [opcoes, setOpcoes] = useState({ A: "", B: "", C: "", D: "", E: "" });
-  const [correta, setCorreta] = useState("A");
-  const [justificativa, setJustificativa] = useState("");
-  const [referencia, setReferencia] = useState("");
-  const [dificuldade, setDificuldade] = useState("Média");
+  const modoEdicao = !!questaoId;
+
+  // Pré-popula o formulário quando for edição
+  const dadosIniciais = questaoData ? (() => { try { return JSON.parse(questaoData as string); } catch { return null; } })() : null;
+
+  const [enunciado, setEnunciado] = useState(dadosIniciais?.enunciado || "");
+  const [materia, setMateria] = useState(dadosIniciais?.materia || "");
+  const [opcoes, setOpcoes] = useState({
+    A: dadosIniciais?.opcao_a || "",
+    B: dadosIniciais?.opcao_b || "",
+    C: dadosIniciais?.opcao_c || "",
+    D: dadosIniciais?.opcao_d || "",
+    E: dadosIniciais?.opcao_e || "",
+  });
+  const [correta, setCorreta] = useState(dadosIniciais?.resposta_correta || "A");
+  const [justificativa, setJustificativa] = useState(dadosIniciais?.justificativa || "");
+  const [referencia, setReferencia] = useState(dadosIniciais?.referencias || "");
+  const [dificuldade, setDificuldade] = useState(dadosIniciais?.dificuldade || "Média");
   const [loading, setLoading] = useState(false);
 
   const salvarQuestao = async () => {
@@ -24,7 +35,7 @@ export default function CadastrarQuestao() {
     }
 
     setLoading(true);
-    const { error } = await supabase.from("questoes").insert([{
+    const payload = {
       enunciado,
       materia: materia.trim() || null,
       opcao_a: opcoes.A,
@@ -36,14 +47,23 @@ export default function CadastrarQuestao() {
       justificativa,
       referencias: referencia,
       dificuldade,
-      simulado_id: simuladoId ? Number(simuladoId) : null,
-    }]);
+    };
+
+    let error;
+    if (modoEdicao) {
+      ({ error } = await supabase.from("questoes").update(payload).eq("id", questaoId));
+    } else {
+      ({ error } = await supabase.from("questoes").insert([{
+        ...payload,
+        simulado_id: simuladoId ? Number(simuladoId) : null,
+      }]));
+    }
 
     setLoading(false);
     if (error) {
       Alert.alert("Erro ao salvar", error.message);
     } else {
-      Alert.alert("Sucesso", "Questão adicionada à base da OSI!");
+      Alert.alert("Sucesso", modoEdicao ? "Questão atualizada!" : "Questão adicionada à base da OSI!");
       router.back();
     }
   };
@@ -56,7 +76,9 @@ export default function CadastrarQuestao() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Nova Questão (Simulado #{simuladoId})</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {modoEdicao ? "Editar Questão" : `Nova Questão${simuladoId ? ` (#${simuladoId})` : ""}`}
+        </Text>
       </View>
 
       <View style={styles.form}>
@@ -111,7 +133,9 @@ export default function CadastrarQuestao() {
           onPress={salvarQuestao}
           disabled={loading}
         >
-          <Text style={styles.btnSaveText}>{loading ? "Salvando..." : "Cadastrar Questão"}</Text>
+          <Text style={styles.btnSaveText}>
+            {loading ? "Salvando..." : modoEdicao ? "Salvar Alterações" : "Cadastrar Questão"}
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

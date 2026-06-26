@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -22,6 +22,19 @@ export default function RankingCompleto() {
   const [ranking, setRanking] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [aba, setAba] = useState<"individual" | "instituicao">("individual");
+
+  // Agrupa usuários por instituição somando os pontos de cada uma
+  const rankingInstituicoes = useMemo(() => {
+    const mapa: Record<string, number> = {};
+    for (const u of ranking) {
+      const inst = u.instituicao || "Sem instituição";
+      mapa[inst] = (mapa[inst] || 0) + (u.pontuacao || 0);
+    }
+    return Object.entries(mapa)
+      .sort(([, a], [, b]) => b - a)
+      .map(([nome, total], i) => ({ nome, total, pos: i + 1 }));
+  }, [ranking]);
 
   const fetchRanking = async () => {
     try {
@@ -73,6 +86,50 @@ export default function RankingCompleto() {
         <View style={{ width: 24 }} />
       </View>
 
+      {/* TABS */}
+      <View style={[styles.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          style={[styles.tabBtn, aba === "individual" && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          onPress={() => setAba("individual")}
+        >
+          <Text style={[styles.tabText, { color: aba === "individual" ? colors.primary : colors.textLight }]}>
+            Individual
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabBtn, aba === "instituicao" && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          onPress={() => setAba("instituicao")}
+        >
+          <Text style={[styles.tabText, { color: aba === "instituicao" ? colors.primary : colors.textLight }]}>
+            Por Instituição
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {aba === "instituicao" ? (
+        <FlatList
+          data={rankingInstituicoes}
+          keyExtractor={(item) => item.nome}
+          contentContainerStyle={{ padding: 20 }}
+          renderItem={({ item }) => (
+            <View style={[styles.rankItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={styles.rankLeft}>
+                <View style={styles.podiumContainer}>
+                  {item.pos === 1 ? <Ionicons name="trophy" size={24} color="#FFD700" /> :
+                   item.pos === 2 ? <Ionicons name="trophy" size={24} color="#C0C0C0" /> :
+                   item.pos === 3 ? <Ionicons name="trophy" size={24} color="#CD7F32" /> :
+                   <Text style={[styles.positionText, { color: colors.textLight }]}>#{item.pos}</Text>}
+                </View>
+                <View style={[styles.instIconBox, { backgroundColor: colors.primary + "20" }]}>
+                  <Ionicons name="school" size={20} color={colors.primary} />
+                </View>
+                <Text style={[styles.itemUser, { color: colors.text }]} numberOfLines={2}>{item.nome}</Text>
+              </View>
+              <Text style={[styles.itemXp, { color: colors.text }]}>{item.total} XP</Text>
+            </View>
+          )}
+        />
+      ) : (
       <FlatList
         data={ranking}
         keyExtractor={(item) => item.id.toString()}
@@ -113,6 +170,7 @@ export default function RankingCompleto() {
           );
         }}
       />
+      )}
     </SafeAreaView>
   );
 }
@@ -143,7 +201,24 @@ const styles = StyleSheet.create({
   podiumContainer: { width: 35, alignItems: "center", justifyContent: "center" },
   positionText: { fontSize: 14, fontWeight: "bold" },
   avatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 1 },
-  itemUser: { fontSize: 15, fontWeight: "bold" },
+  itemUser: { fontSize: 15, fontWeight: "bold", flexShrink: 1 },
   itemSub: { fontSize: 12, marginTop: 1 },
   itemXp: { fontSize: 15, fontWeight: "bold" },
+  tabRow: {
+    flexDirection: "row",
+    borderBottomWidth: 1,
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  tabText: { fontWeight: "700", fontSize: 14 },
+  instIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 });

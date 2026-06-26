@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -100,19 +101,27 @@ export default function SimuladoNativo() {
     if (currentIdx + 1 < questions.length) {
       setCurrentIdx((i) => i + 1);
     } else {
-      const finalScore = score + (isCorrect ? 0 : 0); // score já foi incrementado
       const xp = score * 10;
       setXpGanho(xp);
       setFinished(true);
 
-      // Salva XP no banco
       try {
         const user = await authService.getUser();
-        if (user?.id && xp > 0) {
-          await authService.adicionarXP(user.id, xp);
+        if (user?.id) {
+          if (xp > 0) await authService.adicionarXP(user.id, xp);
+          // Registra no histórico — exclui revisões geradas pela própria tela de erros
+          const tituloFinal = (titulo as string) || "Simulado OSI";
+          if (!tituloFinal.startsWith("Revisão:")) {
+            await authService.salvarTentativa({
+              simuladoId: id as string | undefined,
+              titulo: tituloFinal,
+              acertos: score,
+              total: questions.length,
+            });
+          }
         }
       } catch (e) {
-        console.error("Erro ao salvar XP", e);
+        console.error("Erro ao finalizar simulado", e);
       }
     }
   };
@@ -275,6 +284,23 @@ export default function SimuladoNativo() {
             </TouchableOpacity>
           </View>
 
+          {/* Botão de refazer apenas as questões erradas */}
+          {erros.length > 0 && (
+            <TouchableOpacity
+              style={styles.refazerBtn}
+              onPress={() => router.replace({
+                pathname: "/(tabs)/simulado",
+                params: {
+                  dadosIA: JSON.stringify(erros),
+                  titulo: `Revisão: ${(titulo as string) || "Simulado OSI"}`,
+                },
+              } as any)}
+            >
+              <Ionicons name="refresh-circle-outline" size={20} color="#F59E0B" />
+              <Text style={styles.refazerBtnText}>Refazer {erros.length} questão(ões) errada(s)</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Review por questão */}
           {showReview && (
             <View style={styles.reviewSection}>
@@ -401,6 +427,13 @@ export default function SimuladoNativo() {
       </View>
 
       <Text style={[styles.enunciado, { color: colors.text }]}>{q?.enunciado}</Text>
+      {q?.imagem_url ? (
+        <Image
+          source={{ uri: q.imagem_url }}
+          style={styles.questaoImagem}
+          resizeMode="contain"
+        />
+      ) : null}
       {["a", "b", "c", "d", "e"].map((l) => {
         const texto = q?.[`opcao_${l}`];
         if (!texto) return null;
@@ -430,7 +463,8 @@ const styles = StyleSheet.create({
   progressText: { fontWeight: "bold", fontSize: 13, minWidth: 36, textAlign: "right" },
   progressBarBg: { height: 6, borderRadius: 3 },
   progressBarFill: { height: "100%", borderRadius: 3 },
-  enunciado: { fontSize: 18, fontWeight: "bold", marginBottom: 25 },
+  enunciado: { fontSize: 18, fontWeight: "bold", marginBottom: 16 },
+  questaoImagem: { width: "100%", height: 200, borderRadius: 12, marginBottom: 20 },
   optBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -571,6 +605,19 @@ const styles = StyleSheet.create({
   reviewWrong: { color: "#EF4444", fontSize: 12, fontWeight: "bold" },
   reviewCorrect: { color: "#10B981", fontSize: 12, fontWeight: "bold" },
 
+  refazerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 8,
+    backgroundColor: "#1E293B",
+    padding: 16,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "#F59E0B",
+  },
+  refazerBtnText: { color: "#F59E0B", fontWeight: "bold", fontSize: 14 },
   finalBackBtn: {
     marginTop: 30,
     backgroundColor: "#334155",

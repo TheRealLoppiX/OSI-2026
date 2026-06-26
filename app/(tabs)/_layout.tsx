@@ -71,6 +71,7 @@ export default function TabsLayout() {
       />
 
       <Tabs.Screen name="simulado" options={{ href: null }} />
+      <Tabs.Screen name="historico" options={{ href: null }} />
     </Tabs>
   );
 }

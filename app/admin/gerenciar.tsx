@@ -70,6 +70,38 @@ export default function GerenciarSimulados() {
     setQuestoesSelecionadas((prev) => prev.includes(id) ? prev.filter((qId) => qId !== id) : [...prev, id]);
   };
 
+  const handleEditarQuestao = (questao: any) => {
+    setModalQuestoesVisible(false);
+    router.push({
+      pathname: "/admin/cadastrar-questao",
+      params: { questaoId: questao.id, questaoData: JSON.stringify(questao) },
+    } as any);
+  };
+
+  const handleDeletarQuestao = (questao: any) => {
+    Alert.alert("Excluir questão", `Remover esta questão do banco?\n\n"${questao.enunciado.substring(0, 80)}..."`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Excluir", style: "destructive",
+        onPress: async () => {
+          await supabase.from("questoes").delete().eq("id", questao.id);
+          // Remove dos vínculos do simulado atual se estava selecionada
+          setQuestoesSelecionadas((prev) => prev.filter((id) => id !== questao.id));
+          setQuestoesBanco((prev) => prev.filter((q) => q.id !== questao.id));
+        },
+      },
+    ]);
+  };
+
+  // Estatísticas simples derivadas do banco de questões já carregado
+  const statsQuestoes = {
+    total: questoesBanco.length,
+    facil: questoesBanco.filter((q) => q.dificuldade === "Fácil").length,
+    media: questoesBanco.filter((q) => q.dificuldade === "Média").length,
+    dificil: questoesBanco.filter((q) => q.dificuldade === "Difícil").length,
+    materias: new Set(questoesBanco.map((q) => q.materia).filter(Boolean)).size,
+  };
+
   const handleSalvarQuestoesNoSimulado = async () => {
     try {
       setSalvandoVinculo(true);
@@ -163,6 +195,32 @@ export default function GerenciarSimulados() {
               <Text style={styles.criarQuestaoBtnText}>Criar Nova Questão</Text>
             </TouchableOpacity>
 
+            {/* Estatísticas rápidas do banco */}
+            {!loadingQuestoes && questoesBanco.length > 0 && (
+              <View style={[styles.statsRow, { backgroundColor: colors.bg }]}>
+                <View style={styles.statChip}>
+                  <Text style={[styles.statNum, { color: colors.primary }]}>{statsQuestoes.total}</Text>
+                  <Text style={styles.statLbl}>Total</Text>
+                </View>
+                <View style={styles.statChip}>
+                  <Text style={[styles.statNum, { color: "#10B981" }]}>{statsQuestoes.facil}</Text>
+                  <Text style={styles.statLbl}>Fáceis</Text>
+                </View>
+                <View style={styles.statChip}>
+                  <Text style={[styles.statNum, { color: "#F59E0B" }]}>{statsQuestoes.media}</Text>
+                  <Text style={styles.statLbl}>Médias</Text>
+                </View>
+                <View style={styles.statChip}>
+                  <Text style={[styles.statNum, { color: "#EF4444" }]}>{statsQuestoes.dificil}</Text>
+                  <Text style={styles.statLbl}>Difíceis</Text>
+                </View>
+                <View style={styles.statChip}>
+                  <Text style={[styles.statNum, { color: colors.textLight }]}>{statsQuestoes.materias}</Text>
+                  <Text style={styles.statLbl}>Matérias</Text>
+                </View>
+              </View>
+            )}
+
             {loadingQuestoes ? (
               <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 30 }} />
             ) : questoesBanco.length === 0 ? (
@@ -178,12 +236,11 @@ export default function GerenciarSimulados() {
                 renderItem={({ item }) => {
                   const isChecked = questoesSelecionadas.includes(item.id);
                   return (
-                    <TouchableOpacity
-                      style={[styles.questaoRow, { backgroundColor: colors.bg, borderColor: colors.border }, isChecked && { borderColor: colors.primary, backgroundColor: colors.primary + "15" }]}
-                      onPress={() => handleToggleSelect(item.id)}
-                    >
-                      <Ionicons name={isChecked ? "checkbox" : "square-outline"} size={22} color={isChecked ? colors.primary : "#94A3B8"} />
-                      <View style={{ flex: 1 }}>
+                    <View style={[styles.questaoRow, { backgroundColor: colors.bg, borderColor: colors.border }, isChecked && { borderColor: colors.primary, backgroundColor: colors.primary + "15" }]}>
+                      <TouchableOpacity onPress={() => handleToggleSelect(item.id)}>
+                        <Ionicons name={isChecked ? "checkbox" : "square-outline"} size={22} color={isChecked ? colors.primary : "#94A3B8"} />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={{ flex: 1 }} onPress={() => handleToggleSelect(item.id)}>
                         <Text style={[styles.questaoTextoForm, { color: colors.text }]} numberOfLines={2}>{item.enunciado}</Text>
                         <View style={styles.questaoMeta}>
                           {item.materia && <Text style={styles.questaoTag}>{item.materia}</Text>}
@@ -195,8 +252,15 @@ export default function GerenciarSimulados() {
                             ]}>{item.dificuldade}</Text>
                           )}
                         </View>
-                      </View>
-                    </TouchableOpacity>
+                      </TouchableOpacity>
+                      {/* Ações de edição e exclusão da questão */}
+                      <TouchableOpacity onPress={() => handleEditarQuestao(item)} style={styles.questaoAction}>
+                        <Ionicons name="create-outline" size={18} color={colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeletarQuestao(item)} style={styles.questaoAction}>
+                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
                   );
                 }}
               />
@@ -278,7 +342,12 @@ const styles = StyleSheet.create({
   criarQuestaoBtnText: { color: "#fff", fontWeight: "bold", fontSize: 14 },
   input: { borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 12 },
   btn: { flex: 1, padding: 15, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  questaoRow: { flexDirection: "row", alignItems: "flex-start", padding: 12, borderWidth: 1, borderRadius: 12, marginBottom: 8, gap: 10 },
+  questaoRow: { flexDirection: "row", alignItems: "center", padding: 12, borderWidth: 1, borderRadius: 12, marginBottom: 8, gap: 10 },
+  questaoAction: { padding: 4 },
+  statsRow: { flexDirection: "row", borderRadius: 12, padding: 10, marginBottom: 10, gap: 4, flexWrap: "wrap" },
+  statChip: { flex: 1, minWidth: 50, alignItems: "center", padding: 6 },
+  statNum: { fontSize: 16, fontWeight: "900" },
+  statLbl: { fontSize: 9, color: "#94A3B8", fontWeight: "600", marginTop: 1 },
   questaoTextoForm: { fontSize: 13, marginBottom: 6 },
   questaoMeta: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   questaoTag: { fontSize: 10, fontWeight: "600", backgroundColor: "#F1F5F9", color: "#64748B", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },

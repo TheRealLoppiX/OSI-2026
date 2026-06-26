@@ -22,7 +22,12 @@ export default function FlashcardGenerator() {
   const [loading, setLoading] = useState(false);
   const cardsRef = useRef<(ViewShot | null)[]>([]);
 
-  const questoes = dados ? JSON.parse(dados as string) : [];
+  let questoes: any[] = [];
+  try {
+    questoes = dados ? JSON.parse(dados as string) : [];
+  } catch {
+    questoes = [];
+  }
 
   const baixarFlashcards = async () => {
     if (questoes.length === 0) return;

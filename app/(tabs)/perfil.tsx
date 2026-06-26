@@ -184,7 +184,7 @@ export default function PerfilAluno() {
         </Text>
       </View>
 
-      {/* CARD DE PONTUAÇÃO E RANKING */}
+      {/* CARD DE PONTUAÇÃO, RANKING E STREAK */}
       <View style={[styles.statsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.statBox}>
           <Ionicons name="flash" size={24} color="#FFD700" />
@@ -194,10 +194,16 @@ export default function PerfilAluno() {
           <Text style={[styles.statLabel, { color: colors.textLight }]}>Total de XP</Text>
         </View>
 
-        <View style={[styles.statBox, { borderLeftWidth: 1, borderLeftColor: colors.border }]}>
+        <View style={[styles.statBox, { borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.border }]}>
           <Ionicons name="trophy" size={24} color={colors.primary} />
           <Text style={[styles.statNumber, { color: colors.text }]}>#{rankPosicao}</Text>
-          <Text style={[styles.statLabel, { color: colors.textLight }]}>Posição no Ranking</Text>
+          <Text style={[styles.statLabel, { color: colors.textLight }]}>Ranking</Text>
+        </View>
+
+        <View style={styles.statBox}>
+          <Text style={styles.streakEmoji}>🔥</Text>
+          <Text style={[styles.statNumber, { color: colors.text }]}>{userData?.streak_dias || 0}</Text>
+          <Text style={[styles.statLabel, { color: colors.textLight }]}>Dias seguidos</Text>
         </View>
       </View>
 
@@ -235,6 +241,17 @@ export default function PerfilAluno() {
             Ver Leaderboard Completa
           </Text>
           <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}
+          onPress={() => router.push("/(tabs)/historico")}
+        >
+          <Ionicons name="time-outline" size={20} color="#F59E0B" />
+          <Text style={[styles.menuItemText, { color: colors.text, fontWeight: "bold" }]}>
+            Histórico de Simulados
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
         </TouchableOpacity>
       </View>
 
@@ -291,7 +308,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     elevation: 2,
   },
-  statBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4 },
+  statBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 4, paddingVertical: 4 },
+  streakEmoji: { fontSize: 22 },
   statNumber: { fontSize: 20, fontWeight: "900", marginTop: 4 },
   statLabel: { fontSize: 12 },
   menuContainer: { marginHorizontal: 25, marginTop: 30 },

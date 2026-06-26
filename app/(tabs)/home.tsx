@@ -112,7 +112,12 @@ export default function HomeAluno() {
   const handleOpenInbox = () => {
     fetchMensagens();
     setModalVisible(true);
-    setUnreadCount(0);
+    if (unreadCount > 0) {
+      // Marca todas as notificações como lidas no banco ao abrir a caixa.
+      // As notificações são broadcast (sem dono), então o flag é global.
+      supabase.from("notificacoes").update({ lida: true }).eq("lida", false);
+      setUnreadCount(0);
+    }
   };
 
   return (
