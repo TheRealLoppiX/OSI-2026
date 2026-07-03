@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from "../../src/context/AuthContext";
 import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { authService } from "../../src/services/auth";
@@ -20,6 +21,7 @@ const ACCENT = "#FBBF24";
 export default function AdminDashboard() {
   const { pageReady } = useNavigationLoading();
   const { colors } = useTheme();
+  const { setUsuario } = useAuth();
   const [stats, setStats] = useState({ alunos: 0, simulados: 0, questoes: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -61,6 +63,7 @@ export default function AdminDashboard() {
         onPress: async () => {
           await supabase.auth.signOut().catch(() => {});
           await authService.logout();
+          setUsuario(null);
           router.replace("/");
         },
       },

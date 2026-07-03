@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { authService } from "../../src/services/auth";
+import { useAuth } from "../../src/context/AuthContext";
 import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
@@ -22,6 +23,7 @@ import { supabase } from "../../src/services/supabase";
 export default function PerfilAluno() {
   const { pageReady } = useNavigationLoading();
   const { colors, isDark, toggleTheme } = useTheme();
+  const { setUsuario } = useAuth();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -131,6 +133,7 @@ export default function PerfilAluno() {
       setLoading(true);
       await supabase.auth.signOut().catch(() => {});
       await authService.logout();
+      setUsuario(null);
       router.replace("/");
     } catch (e) {
       router.replace("/");

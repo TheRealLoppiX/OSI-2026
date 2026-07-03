@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { authService } from "../src/services/auth";
 import { supabase } from "../src/services/supabase";
+import { useAuth } from "../src/context/AuthContext";
 import { usePageReady } from "../src/context/NavigationLoadingContext";
 import { useTheme } from "../src/context/ThemeContext";
 import { cadastroSchema } from "../src/schemas/authSchema";
@@ -26,6 +27,7 @@ type Step = "form" | "otp";
 export default function Cadastro() {
   usePageReady();
   const { colors } = useTheme();
+  const { setUsuario: setUsuarioLogado } = useAuth();
 
   const [step, setStep] = useState<Step>("form");
   const [nome, setNome] = useState("");
@@ -97,6 +99,7 @@ export default function Cadastro() {
       if (data?.error) throw new Error(data.error);
 
       await authService.saveUser(data.user);
+      setUsuarioLogado(data.user);
       router.replace("/(tabs)/home");
     } catch (err: any) {
       Alert.alert("Código inválido", err.message || "Tente novamente.");

@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
 import { authService } from "../src/services/auth";
 import { usePageReady } from "../src/context/NavigationLoadingContext";
@@ -17,6 +18,7 @@ import { usePageReady } from "../src/context/NavigationLoadingContext";
 export default function Login() {
   usePageReady();
   const { colors, isDark, toggleTheme } = useTheme();
+  const { setUsuario } = useAuth();
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,6 +31,7 @@ export default function Login() {
     try {
       setLoading(true);
       const loggedUser = await authService.logarAluno(user, password);
+      setUsuario(loggedUser);
       router.replace(loggedUser.role === "admin" ? "/admin" : "/(tabs)/home");
     } catch (error: any) {
       Alert.alert(

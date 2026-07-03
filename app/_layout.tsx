@@ -5,16 +5,16 @@ import {
   useSegments,
 } from "expo-router";
 import * as NavigationBar from "expo-navigation-bar";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { ActivityIndicator, AppState, Platform, StyleSheet, View } from "react-native";
 import { NavigationLoading } from "../components/NavigationLoading";
+import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { LoadingProvider } from "../src/context/LoadingContext";
 import {
   NavigationLoadingProvider,
   useNavigationLoading,
 } from "../src/context/NavigationLoadingContext";
 import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
-import { authService } from "../src/services/auth";
 
 let jaRedirecionouGlobal = false;
 
@@ -23,7 +23,9 @@ export default function RootLayout() {
     <ThemeProvider>
       <LoadingProvider>
         <NavigationLoadingProvider>
-          <RootLayoutInner />
+          <AuthProvider>
+            <RootLayoutInner />
+          </AuthProvider>
         </NavigationLoadingProvider>
       </LoadingProvider>
     </ThemeProvider>
@@ -34,16 +36,12 @@ function RootLayoutInner() {
   const segment = useSegments();
   const router = useRouter();
   const navigationState = useRootNavigationState();
-  const [usuarioLogado, setUsuarioLogado] = useState<any>(undefined);
+  const { usuario: usuarioLogado } = useAuth();
   const { isLoading, startNavigation } = useNavigationLoading();
   const isFirstMount = useRef(true);
 
   useEffect(() => {
     jaRedirecionouGlobal = false;
-    authService
-      .getUser()
-      .then((user) => setUsuarioLogado(user ?? null))
-      .catch(() => setUsuarioLogado(null));
   }, []);
 
   // Esconde a barra de navegação do Android e re-oculta ao voltar do background
