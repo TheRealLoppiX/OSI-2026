@@ -26,7 +26,7 @@ export default function TutorChat() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
-      text: "Olá! Sou OSIA, sua assistente de estudos para a OSI. Qual tema de TI vamos explorar hoje?",
+      text: "Olá! Sou OSIA, assistente de estudos da OSI. Qual tema de TI vamos explorar hoje?",
       from: "ai",
     },
   ]);

@@ -29,7 +29,7 @@ export default function HomeAluno() {
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState("Estudante");
   const [unreadCount, setUnreadCount] = useState(0);
-  const [salTip, setSalTip] = useState("Carregando dica da OSIA...");
+  const [osiaTip, setOsiaTip] = useState("Carregando dica de OSIA...");
   const [modalVisible, setModalVisible] = useState(false);
   const [notificacoes, setNotificacoes] = useState<any[]>([]);
 
@@ -60,12 +60,12 @@ export default function HomeAluno() {
     if (!error && data) setNotificacoes(data);
   };
 
-  const loadSalTip = async () => {
+  const loadOsiaTip = async () => {
     try {
       const tip = await aiService.getPalavraMotivacional("Tecnologia");
-      setSalTip(tip);
+      setOsiaTip(tip);
     } catch (e) {
-      setSalTip("Mantenha o foco nos estudos, a OSI 2026 está chegando!");
+      setOsiaTip("Mantenha o foco nos estudos, a OSI 2026 está chegando!");
     }
   };
 
@@ -86,7 +86,7 @@ export default function HomeAluno() {
     getUserData();
     getUnreadNotifications();
     loadNews();
-    loadSalTip();
+    loadOsiaTip();
 
     const channel = supabase
       .channel("notificacoes-realtime")
@@ -106,7 +106,7 @@ export default function HomeAluno() {
     setRefreshing(true);
     getUnreadNotifications();
     loadNews();
-    loadSalTip();
+    loadOsiaTip();
   };
 
   const handleOpenInbox = () => {
@@ -197,13 +197,13 @@ export default function HomeAluno() {
           <Text style={[styles.userName, { color: colors.text }]}>{userName} </Text>
         </View>
 
-        {/* BOX DO SAL (IA) */}
-        <View style={[styles.salCard, { backgroundColor: colors.primary }]}>
-          <View style={styles.salHeader}>
+        {/* CARD OSIA */}
+        <View style={[styles.osiaCard, { backgroundColor: colors.primary }]}>
+          <View style={styles.osiaHeader}>
             <MaterialCommunityIcons name="robot-happy" size={22} color="#fff" />
-            <Text style={styles.salTitle}>OSIA lhe diz:</Text>
+            <Text style={styles.osiaTitle}>OSIA lhe diz:</Text>
           </View>
-          <Text style={styles.salText}>{salTip}</Text>
+          <Text style={styles.osiaText}>{osiaTip}</Text>
         </View>
 
         <View style={styles.actionRow}>
@@ -337,15 +337,15 @@ const styles = StyleSheet.create({
   welcomeSection: { padding: 25, paddingBottom: 10 },
   welcomeText: { fontSize: 16 },
   userName: { fontSize: 26, fontWeight: "bold" },
-  salCard: {
+  osiaCard: {
     marginHorizontal: 25,
     marginBottom: 20,
     padding: 20,
     borderRadius: 24,
   },
-  salHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-  salTitle: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  salText: { color: "rgba(255,255,255,0.9)", fontSize: 13, fontStyle: "italic", lineHeight: 18 },
+  osiaHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
+  osiaTitle: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  osiaText: { color: "rgba(255,255,255,0.9)", fontSize: 13, fontStyle: "italic", lineHeight: 18 },
   actionRow: { flexDirection: "row", paddingHorizontal: 25, gap: 15, marginBottom: 25 },
   mainAction: {
     flex: 1,

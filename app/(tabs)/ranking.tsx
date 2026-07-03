@@ -16,6 +16,18 @@ import { useNavigationLoading } from "../../src/context/NavigationLoadingContext
 import { useTheme } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
 
+// Fallback usado apenas se a instituição não estiver cadastrada na tabela "instituicoes"
+function siglaFallback(nome: string): string {
+  const ignorar = new Set(["de", "da", "do", "dos", "das", "e", "a", "o", "em", "no", "na"]);
+  const sigla = nome
+    .split(" ")
+    .filter((w) => w.length > 0 && !ignorar.has(w.toLowerCase()))
+    .map((w) => w[0].toUpperCase())
+    .join("");
+
+  return sigla || nome;
+}
+
 export default function RankingCompleto() {
   const { pageReady } = useNavigationLoading();
   const { colors } = useTheme();
@@ -23,6 +35,10 @@ export default function RankingCompleto() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [aba, setAba] = useState<"individual" | "instituicao">("individual");
+  const [siglasPorNome, setSiglasPorNome] = useState<Record<string, string>>({});
+
+  const siglaInstituicao = (nome: string): string =>
+    siglasPorNome[nome] || siglaFallback(nome);
 
   // Agrupa usuários por instituição somando os pontos de cada uma
   const rankingInstituicoes = useMemo(() => {
@@ -56,8 +72,20 @@ export default function RankingCompleto() {
     }
   };
 
+  const fetchInstituicoes = async () => {
+    const { data, error } = await supabase.from("instituicoes").select("nome, sigla");
+    if (!error && data) {
+      const mapa: Record<string, string> = {};
+      for (const inst of data) {
+        if (inst.sigla) mapa[inst.nome] = inst.sigla;
+      }
+      setSiglasPorNome(mapa);
+    }
+  };
+
   useEffect(() => {
     fetchRanking();
+    fetchInstituicoes();
   }, []);
 
   const renderPodiumIcon = (index: number) => {
@@ -123,7 +151,7 @@ export default function RankingCompleto() {
                 <View style={[styles.instIconBox, { backgroundColor: colors.primary + "20" }]}>
                   <Ionicons name="school" size={20} color={colors.primary} />
                 </View>
-                <Text style={[styles.itemUser, { color: colors.text }]} numberOfLines={2}>{item.nome}</Text>
+                <Text style={[styles.itemUser, { color: colors.text, flexShrink: 1 }]} numberOfLines={1}>{siglaInstituicao(item.nome)}</Text>
               </View>
               <Text style={[styles.itemXp, { color: colors.text }]}>{item.total} XP</Text>
             </View>
@@ -159,7 +187,7 @@ export default function RankingCompleto() {
                     {item.usuario} {isMe && "(Você)"}
                   </Text>
                   <Text style={[styles.itemSub, { color: colors.textLight }]}>
-                    {item.instituicao || "IF Sertão"}
+                    {siglaInstituicao(item.instituicao || "IF Sertão")}
                   </Text>
                 </View>
               </View>

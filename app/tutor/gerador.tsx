@@ -57,7 +57,7 @@ export default function GeradorSimulado() {
         const restante = Math.ceil((UMA_HORA_MS - elapsed) / 60000);
         return Alert.alert(
           "Aguarde um pouco",
-          `Para não sobrecarregar a OSIA, cada usuário pode gerar 1 simulado por hora.\n\nPróximo disponível em ${restante} min.`
+          `Para não sobrecarregar OSIA, cada usuário pode gerar 1 simulado por hora.\n\nPróximo disponível em ${restante} min.`
         );
       }
     }

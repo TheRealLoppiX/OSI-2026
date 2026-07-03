@@ -140,7 +140,7 @@ export default function SimuladoNativo() {
       );
 
       const superPromptOSIA = `
-        Você é OSIA, a IA da OSI. O estudante errou: ${JSON.stringify(listaErros)}.
+        Você é OSIA, sistema de IA da OSI. O estudante errou: ${JSON.stringify(listaErros)}.
 
         Gere uma ANÁLISE GRÁFICA usando HTML e CSS inline (sem libs JS externas).
         Dark mode (#0F172A), futurista. INCLUA:
