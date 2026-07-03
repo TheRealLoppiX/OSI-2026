@@ -36,7 +36,8 @@ export default function HomeAluno() {
   const getUserData = async () => {
     const user = await authService.getUser();
     if (user) {
-      setUserName(user.usuario);
+      const primeiroNome = (user.nome || user.usuario || "Estudante").trim().split(" ")[0];
+      setUserName(primeiroNome);
     } else {
       router.replace("/");
     }
@@ -109,14 +110,14 @@ export default function HomeAluno() {
     loadOsiaTip();
   };
 
-  const handleOpenInbox = () => {
+  const handleOpenInbox = async () => {
     fetchMensagens();
     setModalVisible(true);
     if (unreadCount > 0) {
-      // Marca todas as notificações como lidas no banco ao abrir a caixa.
-      // As notificações são broadcast (sem dono), então o flag é global.
-      supabase.from("notificacoes").update({ lida: true }).eq("lida", false);
-      setUnreadCount(0);
+      // RLS bloqueia UPDATE em notificacoes pela anon key, então a escrita
+      // passa pela Edge Function (service role) em vez do client direto.
+      const { error } = await supabase.functions.invoke("marcar-notificacoes-lidas");
+      if (!error) setUnreadCount(0);
     }
   };
 

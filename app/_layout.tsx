@@ -78,7 +78,6 @@ function RootLayoutInner() {
     if (usuarioLogado === undefined) return;
 
     const rotaRaiz = segment[0] as string | undefined;
-    if (!rotaRaiz) return;
 
     const estaNaAreaRestrita =
       rotaRaiz === "(tabs)" ||
