@@ -65,7 +65,7 @@ export default function EscolherSimulado() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>Simulados OSI</Text>
@@ -81,7 +81,7 @@ export default function EscolherSimulado() {
           onChangeText={setBusca}
         />
         {busca.length > 0 && (
-          <TouchableOpacity onPress={() => setBusca("")}>
+          <TouchableOpacity onPress={() => setBusca("")} accessibilityRole="button" accessibilityLabel="Limpar busca">
             <Ionicons name="close-circle" size={18} color={colors.textLight} />
           </TouchableOpacity>
         )}
@@ -130,7 +130,12 @@ export default function EscolherSimulado() {
       )}
 
       {/* BOTÃO FLUTUANTE OSIA */}
-      <TouchableOpacity style={styles.geminiFab} onPress={() => setTutorVisible(true)}>
+      <TouchableOpacity
+        style={styles.geminiFab}
+        onPress={() => setTutorVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Abrir OSIA"
+      >
         <MaterialCommunityIcons name="auto-fix" size={30} color="#fff" />
       </TouchableOpacity>
 

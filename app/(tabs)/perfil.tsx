@@ -5,8 +5,8 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -19,6 +19,8 @@ import { useAuth } from "../../src/context/AuthContext";
 import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
 import { useTheme } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function PerfilAluno() {
   const { pageReady } = useNavigationLoading();
@@ -78,7 +80,7 @@ export default function PerfilAluno() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("Permissão necessária", "Precisamos de acesso às suas fotos.");
+        appAlert.alert("Permissão necessária", "Precisamos de acesso às suas fotos.");
         return;
       }
 
@@ -97,7 +99,7 @@ export default function PerfilAluno() {
       const userId = userData?.id;
 
       if (!userId) {
-        Alert.alert("Erro", "ID do usuário não identificado.");
+        appAlert.alert("Erro", "ID do usuário não identificado.");
         setUploading(false);
         return;
       }
@@ -120,9 +122,9 @@ export default function PerfilAluno() {
       setUserData(updatedUser);
       await authService.saveUser(updatedUser);
 
-      Alert.alert("Sucesso!", "Sua foto de perfil foi atualizada.");
+      appAlert.alert("Sucesso!", "Sua foto de perfil foi atualizada.");
     } catch (error: any) {
-      Alert.alert("Erro no Upload", error.message || "Não foi possível salvar a foto.");
+      appAlert.alert("Erro no Upload", friendlyError(error, "Não foi possível salvar a foto."));
     } finally {
       setUploading(false);
     }
@@ -156,16 +158,31 @@ export default function PerfilAluno() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* HEADER */}
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Meu Perfil</Text>
         <View style={{ width: 24 }} />
       </View>
 
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
       {/* ÁREA DA FOTO */}
       <View style={styles.avatarSection}>
-        <TouchableOpacity onPress={handlePickImage} disabled={uploading}>
+        <TouchableOpacity
+          onPress={handlePickImage}
+          disabled={uploading}
+          accessibilityRole="button"
+          accessibilityLabel="Trocar foto de perfil"
+        >
           <Image
             source={{ uri: userData?.avatar_url || defaultAvatar }}
             style={[styles.avatar, { borderColor: colors.card }]}
@@ -256,10 +273,27 @@ export default function PerfilAluno() {
           </Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
         </TouchableOpacity>
-      </View>
 
-      {/* BOTÃO DE LOGOUT */}
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <TouchableOpacity
+          style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}
+          onPress={() => router.push("/ajuda" as any)}
+        >
+          <Ionicons name="help-circle-outline" size={20} color={colors.textLight} />
+          <Text style={[styles.menuItemText, { color: colors.text, fontWeight: "bold" }]}>
+            Ajuda e Perguntas Frequentes
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+        </TouchableOpacity>
+      </View>
+      </ScrollView>
+
+      {/* BOTÃO DE LOGOUT — fora do ScrollView para nunca ficar oculto por overflow */}
+      <TouchableOpacity
+        style={styles.logoutBtn}
+        onPress={handleLogout}
+        accessibilityRole="button"
+        accessibilityLabel="Sair da conta"
+      >
         <Ionicons name="log-out-outline" size={20} color="red" />
         <Text style={styles.logoutText}>Sair da Conta</Text>
       </TouchableOpacity>
@@ -280,6 +314,8 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: "bold" },
+  scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
   avatarSection: { alignItems: "center", marginTop: 30 },
   avatar: {
     width: 110,
@@ -330,8 +366,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    marginTop: "auto",
-    marginBottom: 30,
+    marginTop: 12,
+    marginBottom: 20,
     marginHorizontal: 25,
     padding: 16,
     borderRadius: 16,

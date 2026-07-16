@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { OnboardingModal } from "../../components/OnboardingModal";
 import { aiService } from "../../src/services/aiService";
 import { authService } from "../../src/services/auth";
 import { newsService } from "../../src/services/newsService";
@@ -123,11 +124,17 @@ export default function HomeAluno() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+      <OnboardingModal />
       {/* HEADER */}
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <Text style={[styles.logoText, { color: colors.primary }]}>OSI 2026</Text>
         <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconBtn} onPress={handleOpenInbox}>
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={handleOpenInbox}
+            accessibilityRole="button"
+            accessibilityLabel={unreadCount > 0 ? `Avisos, ${unreadCount} não lidos` : "Avisos"}
+          >
             <Ionicons name="notifications-outline" size={26} color={colors.text} />
             {unreadCount > 0 && (
               <View style={styles.badge}>
@@ -139,6 +146,8 @@ export default function HomeAluno() {
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => router.push("/(tabs)/perfil")}
+            accessibilityRole="button"
+            accessibilityLabel="Meu perfil"
           >
             <Ionicons name="person-circle-outline" size={32} color={colors.primary} />
           </TouchableOpacity>
@@ -156,7 +165,7 @@ export default function HomeAluno() {
           <View style={[styles.inboxContainer, { backgroundColor: colors.card }]}>
             <View style={[styles.inboxHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.inboxTitle, { color: colors.text }]}>Avisos dos Docentes</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity onPress={() => setModalVisible(false)} accessibilityRole="button" accessibilityLabel="Fechar avisos">
                 <Ionicons name="close-circle" size={26} color={colors.textLight} />
               </TouchableOpacity>
             </View>

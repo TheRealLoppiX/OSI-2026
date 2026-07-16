@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   StyleSheet,
@@ -14,6 +13,8 @@ import {
 } from "react-native";
 import { useTheme } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function GerenciarInstituicoes() {
   const { colors } = useTheme();
@@ -37,24 +38,36 @@ export default function GerenciarInstituicoes() {
   useEffect(() => { fetchInstituicoes(); }, []);
 
   const handleSalvar = async () => {
-    if (!nome.trim()) return Alert.alert("Atenção", "Informe o nome da instituição.");
+    if (!nome.trim()) return appAlert.alert("Atenção", "Informe o nome da instituição.");
     setSalvando(true);
     const { error } = await supabase
       .from("instituicoes")
       .insert([{ nome: nome.trim(), sigla: sigla.trim() }]);
     setSalvando(false);
     if (error) {
-      return Alert.alert("Erro", error.code === "23505" ? "Instituição já cadastrada." : error.message);
+      return appAlert.alert("Erro", error.code === "23505" ? "Instituição já cadastrada." : friendlyError(error, "Não foi possível salvar."));
     }
     setNome(""); setSigla("");
     setModalVisible(false);
     fetchInstituicoes();
   };
 
-  const handleDeletar = (inst: any) => {
-    Alert.alert(
+  const handleDeletar = async (inst: any) => {
+    const { count } = await supabase
+      .from("usuarios")
+      .select("id", { count: "exact", head: true })
+      .eq("instituicao", inst.nome);
+
+    if (count && count > 0) {
+      return appAlert.alert(
+        "Não é possível excluir",
+        `Há ${count} aluno(s) vinculado(s) a "${inst.nome}". Reatribua-os a outra instituição antes de excluir, para evitar vínculos inválidos.`
+      );
+    }
+
+    appAlert.alert(
       "Excluir instituição",
-      `Remover "${inst.nome}"? Alunos cadastrados com esse nome não serão afetados.`,
+      `Remover "${inst.nome}"? Nenhum aluno está vinculado a ela.`,
       [
         { text: "Cancelar", style: "cancel" },
         {
@@ -73,11 +86,11 @@ export default function GerenciarInstituicoes() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>Instituições</Text>
-        <TouchableOpacity onPress={fetchInstituicoes}>
+        <TouchableOpacity onPress={fetchInstituicoes} accessibilityRole="button" accessibilityLabel="Atualizar lista">
           <Ionicons name="refresh" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -141,7 +154,12 @@ export default function GerenciarInstituicoes() {
                 </Text>
               </View>
               <Text style={[styles.nome, { color: colors.text }]} numberOfLines={2}>{item.nome}</Text>
-              <TouchableOpacity onPress={() => handleDeletar(item)} style={styles.deleteBtn}>
+              <TouchableOpacity
+                onPress={() => handleDeletar(item)}
+                style={styles.deleteBtn}
+                accessibilityRole="button"
+                accessibilityLabel={`Excluir instituição ${item.nome}`}
+              >
                 <Ionicons name="trash-outline" size={18} color="#EF4444" />
               </TouchableOpacity>
             </View>
@@ -149,7 +167,12 @@ export default function GerenciarInstituicoes() {
         />
       )}
 
-      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => setModalVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Adicionar instituição"
+      >
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
     </View>

@@ -5,7 +5,7 @@ import {
   useSegments,
 } from "expo-router";
 import * as NavigationBar from "expo-navigation-bar";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { ActivityIndicator, AppState, Platform, StyleSheet, View } from "react-native";
 import { NavigationLoading } from "../components/NavigationLoading";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
@@ -15,6 +15,7 @@ import {
   useNavigationLoading,
 } from "../src/context/NavigationLoadingContext";
 import { ThemeProvider, useTheme } from "../src/context/ThemeContext";
+import { AppAlertProvider } from "../src/services/appAlert";
 
 let jaRedirecionouGlobal = false;
 
@@ -38,7 +39,6 @@ function RootLayoutInner() {
   const navigationState = useRootNavigationState();
   const { usuario: usuarioLogado } = useAuth();
   const { isLoading, startNavigation } = useNavigationLoading();
-  const isFirstMount = useRef(true);
 
   useEffect(() => {
     jaRedirecionouGlobal = false;
@@ -63,15 +63,6 @@ function RootLayoutInner() {
     return () => sub.remove();
   }, []);
 
-  // Dispara o loading a cada troca de rota (exceto na montagem inicial)
-  useEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-      return;
-    }
-    startNavigation();
-  }, [JSON.stringify(segment)]);
-
   // Guard de autenticação
   useEffect(() => {
     if (!navigationState?.key) return;
@@ -86,6 +77,7 @@ function RootLayoutInner() {
 
     if (usuarioLogado && !estaNaAreaRestrita && !jaRedirecionouGlobal) {
       jaRedirecionouGlobal = true;
+      startNavigation();
       const destino =
         usuarioLogado.role === "admin"
           ? "/admin"
@@ -112,6 +104,7 @@ function RootLayoutInner() {
         </View>
       )}
       <NavigationLoading visible={isLoading} />
+      <AppAlertProvider />
     </>
   );
 }

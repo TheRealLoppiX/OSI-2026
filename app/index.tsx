@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   TextInput,
@@ -13,10 +12,13 @@ import {
 import { useAuth } from "../src/context/AuthContext";
 import { useTheme } from "../src/context/ThemeContext";
 import { authService } from "../src/services/auth";
-import { usePageReady } from "../src/context/NavigationLoadingContext";
+import { useNavigationLoading, usePageReady } from "../src/context/NavigationLoadingContext";
+import { appAlert } from "../src/services/appAlert";
+import { friendlyError } from "../src/utils/friendlyError";
 
 export default function Login() {
   usePageReady();
+  const { startNavigation } = useNavigationLoading();
   const { colors, isDark, toggleTheme } = useTheme();
   const { setUsuario } = useAuth();
   const [user, setUser] = useState("");
@@ -25,18 +27,19 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!user || !password) {
-      Alert.alert("Atenção", "Preencha todos os campos.");
+      appAlert.alert("Atenção", "Preencha todos os campos.");
       return;
     }
     try {
       setLoading(true);
       const loggedUser = await authService.logarAluno(user, password);
       setUsuario(loggedUser);
+      startNavigation();
       router.replace(loggedUser.role === "admin" ? "/admin" : "/(tabs)/home");
     } catch (error: any) {
-      Alert.alert(
+      appAlert.alert(
         "Erro no Login",
-        error.message || "Usuário ou senha inválidos.",
+        friendlyError(error, "Usuário ou senha inválidos."),
       );
     } finally {
       setLoading(false);
@@ -45,7 +48,12 @@ export default function Login() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <TouchableOpacity style={styles.themeBtn} onPress={toggleTheme}>
+      <TouchableOpacity
+        style={styles.themeBtn}
+        onPress={toggleTheme}
+        accessibilityRole="button"
+        accessibilityLabel={isDark ? "Ativar tema claro" : "Ativar tema escuro"}
+      >
         <Ionicons
           name={isDark ? "sunny-outline" : "moon-outline"}
           size={24}

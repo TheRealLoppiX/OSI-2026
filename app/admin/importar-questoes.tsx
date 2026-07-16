@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,8 +15,35 @@ import {
 } from "react-native";
 import { useTheme } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 type Modo = "url" | "xlsx";
+
+// Mesma ordem de colunas usada pela importação (A a L), para que o arquivo
+// exportado sirva como planilha de validação e possa ser reimportado depois.
+const CAMPOS_PLANILHA = [
+  "enunciado",
+  "opcao_a",
+  "opcao_b",
+  "opcao_c",
+  "opcao_d",
+  "opcao_e",
+  "resposta_correta",
+  "justificativa",
+  "materia",
+  "dificuldade",
+  "referencias",
+  "imagem_url",
+];
+
+function csvEscape(valor: any): string {
+  const texto = valor === null || valor === undefined ? "" : String(valor);
+  if (/[",\n]/.test(texto)) {
+    return `"${texto.replace(/"/g, '""')}"`;
+  }
+  return texto;
+}
 
 export default function ImportarQuestoes() {
   const { colors } = useTheme();
@@ -27,8 +54,46 @@ export default function ImportarQuestoes() {
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<any[] | null>(null);
   const [importando, setImportando] = useState(false);
+  const [exportando, setExportando] = useState(false);
 
   const resetPreview = () => setPreview(null);
+
+  const handleExportar = async () => {
+    setExportando(true);
+    try {
+      const { data, error } = await supabase
+        .from("questoes")
+        .select(CAMPOS_PLANILHA.join(","))
+        .order("created_at", { ascending: true });
+      if (error) throw new Error(error.message);
+      if (!data?.length) {
+        return appAlert.alert("Nada para exportar", "Ainda não há questões cadastradas no banco.");
+      }
+
+      const linhas = [
+        CAMPOS_PLANILHA.join(","),
+        ...data.map((q: any) => CAMPOS_PLANILHA.map((campo) => csvEscape(q[campo])).join(",")),
+      ];
+      const csv = linhas.join("\n");
+
+      const nomeArquivoExport = `questoes_osi_${Date.now()}.csv`;
+      const uri = `${FileSystem.cacheDirectory}${nomeArquivoExport}`;
+      await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          mimeType: "text/csv",
+          dialogTitle: "Planilha de validação de questões",
+        });
+      } else {
+        appAlert.alert("Exportado", `Arquivo salvo em: ${uri}`);
+      }
+    } catch (err: any) {
+      appAlert.alert("Erro ao exportar", friendlyError(err, "Não foi possível gerar a planilha."));
+    } finally {
+      setExportando(false);
+    }
+  };
 
   const handleSelecionarXlsx = async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -48,20 +113,20 @@ export default function ImportarQuestoes() {
       setBase64(b64);
       await chamarPreview({ base64: b64 });
     } catch (err: any) {
-      Alert.alert("Erro", err.message);
+      appAlert.alert("Erro", friendlyError(err, "Não foi possível ler o arquivo."));
     } finally {
       setLoading(false);
     }
   };
 
   const handlePreviewUrl = async () => {
-    if (!url.trim()) return Alert.alert("Atenção", "Cole a URL da planilha.");
+    if (!url.trim()) return appAlert.alert("Atenção", "Cole a URL da planilha.");
     setLoading(true);
     resetPreview();
     try {
       await chamarPreview({ url: url.trim() });
     } catch (err: any) {
-      Alert.alert("Erro", err.message);
+      appAlert.alert("Erro", friendlyError(err, "Não foi possível pré-visualizar a planilha."));
     } finally {
       setLoading(false);
     }
@@ -78,7 +143,7 @@ export default function ImportarQuestoes() {
 
   const handleImportar = async () => {
     if (!preview?.length) return;
-    Alert.alert(
+    appAlert.alert(
       "Confirmar importação",
       `Importar ${preview.length} questões para o banco da OSI?`,
       [
@@ -100,13 +165,13 @@ export default function ImportarQuestoes() {
               if (error) throw new Error(error.message);
               if (data?.error) throw new Error(data.error);
               const puladas = data.puladas > 0 ? ` ${data.puladas} já existiam e foram ignoradas.` : "";
-              Alert.alert(
+              appAlert.alert(
                 "Importação concluída",
                 `${data.importadas} questões importadas.${puladas}`,
                 [{ text: "OK", onPress: () => router.back() }],
               );
             } catch (err: any) {
-              Alert.alert("Erro na importação", err.message);
+              appAlert.alert("Erro na importação", friendlyError(err, "Não foi possível importar as questões."));
             } finally {
               setImportando(false);
             }
@@ -136,14 +201,29 @@ export default function ImportarQuestoes() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>
           Importar via Planilha
         </Text>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity
+          onPress={handleExportar}
+          disabled={exportando}
+          style={{ width: 24, alignItems: "flex-end" }}
+          accessibilityRole="button"
+          accessibilityLabel="Exportar banco de questões em CSV"
+        >
+          {exportando ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <Ionicons name="cloud-download-outline" size={22} color={colors.primary} />
+          )}
+        </TouchableOpacity>
       </View>
+      <Text style={[styles.exportHint, { color: colors.textLight }]}>
+        Toque no ícone de download para exportar o banco de questões atual em uma planilha de validação (.csv).
+      </Text>
 
       {/* Toggle de modo */}
       <View style={[styles.toggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -399,6 +479,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   title: { fontSize: 18, fontWeight: "bold" },
+  exportHint: { fontSize: 11, marginHorizontal: 20, marginTop: 10 },
   toggleRow: {
     flexDirection: "row",
     margin: 20,

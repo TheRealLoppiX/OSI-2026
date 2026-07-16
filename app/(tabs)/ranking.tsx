@@ -107,7 +107,7 @@ export default function RankingCompleto() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
       {/* HEADER */}
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Leaderboard OSI 2026</Text>

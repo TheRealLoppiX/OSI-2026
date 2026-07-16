@@ -1,10 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +14,8 @@ import {
 import { aiService } from "../../src/services/aiService";
 import { authService } from "../../src/services/auth";
 import { useTheme } from "../../src/context/ThemeContext";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 const UMA_HORA_MS = 60 * 60 * 1000;
 
@@ -24,9 +25,13 @@ export default function GeradorSimulado() {
   const [nQts, setNQts] = useState(5);
   const [loading, setLoading] = useState(false);
   const [cooldownMin, setCooldownMin] = useState(0);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
     verificarCooldown();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const verificarCooldown = async () => {
@@ -45,7 +50,7 @@ export default function GeradorSimulado() {
   };
 
   const gerarSimuladoIA = async () => {
-    if (!tema.trim()) return Alert.alert("Ops", "Qual o tema?");
+    if (!tema.trim()) return appAlert.alert("Ops", "Qual o tema?");
 
     const user = await authService.getUser();
     const key = `@OSI_ai_gen_${user?.id || "guest"}`;
@@ -55,7 +60,7 @@ export default function GeradorSimulado() {
       const elapsed = Date.now() - Number(lastStr);
       if (elapsed < UMA_HORA_MS) {
         const restante = Math.ceil((UMA_HORA_MS - elapsed) / 60000);
-        return Alert.alert(
+        return appAlert.alert(
           "Aguarde um pouco",
           `Para não sobrecarregar OSIA, cada usuário pode gerar 1 simulado por hora.\n\nPróximo disponível em ${restante} min.`
         );
@@ -66,16 +71,26 @@ export default function GeradorSimulado() {
     try {
       const questoesGeradas = await aiService.gerarQuestoesIA(tema, nQts);
       await AsyncStorage.setItem(key, String(Date.now()));
-      setCooldownMin(60);
 
-      router.push({
+      // O usuário pode ter saído da tela (ex: botão voltar) enquanto a IA
+      // gerava as questões — nesse caso não navega para não "redirecionar"
+      // o usuário de volta para um simulado que ele não pediu mais.
+      if (!isMountedRef.current) return;
+
+      setCooldownMin(60);
+      router.replace({
         pathname: "/simulado",
         params: { dadosIA: JSON.stringify(questoesGeradas), titulo: `Treino IA: ${tema}` },
       } as any);
-    } catch (error) {
-      Alert.alert("Erro", "O limite de requisições gratuitas foi atingido. Tente em 1 minuto.");
+    } catch (error: any) {
+      if (isMountedRef.current) {
+        appAlert.alert(
+          "Erro",
+          friendlyError(error, "O limite de requisições gratuitas foi atingido. Tente em 1 minuto.")
+        );
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
   };
 
@@ -85,7 +100,11 @@ export default function GeradorSimulado() {
       contentContainerStyle={{ paddingBottom: 40 }}
     >
       <View style={[styles.header, { backgroundColor: colors.bg }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>Simulado IA</Text>

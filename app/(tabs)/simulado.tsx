@@ -4,7 +4,6 @@ import { MotiView } from "moti";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   ScrollView,
@@ -18,12 +17,48 @@ import { aiService } from "../../src/services/aiService";
 import { authService } from "../../src/services/auth";
 import { supabase } from "../../src/services/supabase";
 import { useTheme } from "../../src/context/ThemeContext";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 function getPerformanceTier(pct: number) {
   if (pct >= 80) return { label: "Excelente!", cor: "#10B981", bg: "#ECFDF5" };
   if (pct >= 60) return { label: "Bom Desempenho", cor: "#3B82F6", bg: "#EFF6FF" };
   if (pct >= 40) return { label: "Em Desenvolvimento", cor: "#F59E0B", bg: "#FFFBEB" };
   return { label: "Precisa Revisar", cor: "#EF4444", bg: "#FEF2F2" };
+}
+
+// Imagem de questão com loading/erro — usada tanto na tela de resposta quanto no gabarito.
+function QuestaoImagem({ uri, style }: { uri: string; style?: any }) {
+  const [status, setStatus] = useState<"loading" | "error" | "loaded">("loading");
+
+  useEffect(() => {
+    setStatus("loading");
+  }, [uri]);
+
+  return (
+    <View style={[styles.imagemWrapper, style]}>
+      {status !== "error" && (
+        <Image
+          source={{ uri }}
+          style={styles.questaoImagem}
+          resizeMode="contain"
+          onLoad={() => setStatus("loaded")}
+          onError={() => setStatus("error")}
+        />
+      )}
+      {status === "loading" && (
+        <View style={styles.imagemOverlay}>
+          <ActivityIndicator color="#94A3B8" />
+        </View>
+      )}
+      {status === "error" && (
+        <View style={styles.imagemOverlay}>
+          <Ionicons name="image-outline" size={26} color="#94A3B8" />
+          <Text style={styles.imagemErrorText}>Não foi possível carregar a imagem</Text>
+        </View>
+      )}
+    </View>
+  );
 }
 
 export default function SimuladoNativo() {
@@ -49,10 +84,11 @@ export default function SimuladoNativo() {
   useEffect(() => {
     if (dadosIA) {
       try {
+        resetQuizState();
         setQuestions(JSON.parse(dadosIA as string));
         setLoading(false);
       } catch (e) {
-        Alert.alert("Erro", "Falha ao processar questões.");
+        appAlert.alert("Erro", "Falha ao processar questões.");
         router.back();
       }
     } else if (id) {
@@ -60,9 +96,22 @@ export default function SimuladoNativo() {
     }
   }, [id, dadosIA]);
 
+  // Zera o estado da tentativa anterior — necessário porque "Refazer questões
+  // erradas" faz router.replace na mesma rota, reaproveitando esta instância
+  // do componente em vez de remontá-la.
+  const resetQuizState = () => {
+    setCurrentIdx(0);
+    setScore(0);
+    setUserAnswers([]);
+    setFinished(false);
+    setXpGanho(0);
+    setShowReview(false);
+  };
+
   const fetchQuestions = async () => {
     try {
       setLoading(true);
+      resetQuizState();
       const { data: simulado, error: simError } = await supabase
         .from("simulados")
         .select("questoes_ids")
@@ -70,7 +119,7 @@ export default function SimuladoNativo() {
         .single();
 
       if (simError || !simulado?.questoes_ids?.length) {
-        Alert.alert("Aviso", "Este simulado não possui questões vinculadas.");
+        appAlert.alert("Aviso", "Este simulado não possui questões vinculadas.");
         router.back();
         return;
       }
@@ -82,7 +131,8 @@ export default function SimuladoNativo() {
 
       if (questoes) setQuestions(questoes.sort(() => Math.random() - 0.5));
     } catch (err) {
-      console.error(err);
+      appAlert.alert("Erro", friendlyError(err, "Não foi possível carregar as questões."));
+      router.back();
     } finally {
       setLoading(false);
     }
@@ -121,7 +171,7 @@ export default function SimuladoNativo() {
           }
         }
       } catch (e) {
-        console.error("Erro ao finalizar simulado", e);
+        appAlert.alert("Aviso", "Não foi possível salvar seu XP/histórico desta tentativa. Seu resultado nesta tela continua válido.");
       }
     }
   };
@@ -130,7 +180,7 @@ export default function SimuladoNativo() {
     const erros = questions.filter((q, i) => userAnswers[i] !== q.resposta_correta);
 
     if (erros.length === 0) {
-      return Alert.alert("Gabaritou!", "OSIA identificou 100% de aproveitamento. Sem falhas para mapear!");
+      return appAlert.alert("Gabaritou!", "OSIA identificou 100% de aproveitamento. Sem falhas para mapear!");
     }
 
     setLoadingIA(true);
@@ -155,7 +205,7 @@ export default function SimuladoNativo() {
       setHtmlAnaliseOSIA(html);
       setModalIAResultVisible(true);
     } catch (e) {
-      Alert.alert("Erro", "OSIA está reajustando os servidores. Tente novamente.");
+      appAlert.alert("Erro", "OSIA está reajustando os servidores. Tente novamente.");
     } finally {
       setLoadingIA(false);
     }
@@ -163,7 +213,7 @@ export default function SimuladoNativo() {
 
   const handleIrParaFlashcards = () => {
     const erros = questions.filter((q, i) => userAnswers[i] !== q.resposta_correta);
-    if (erros.length === 0) return Alert.alert("Parabéns!", "Conteúdo dominado.");
+    if (erros.length === 0) return appAlert.alert("Parabéns!", "Conteúdo dominado.");
     router.push({
       pathname: "/tutor/flashcards",
       params: { dados: JSON.stringify(erros) },
@@ -325,6 +375,9 @@ export default function SimuladoNativo() {
                       )}
                     </View>
                     <Text style={styles.reviewQ} numberOfLines={3}>{q.enunciado}</Text>
+                    {q.imagem_url && (
+                      <QuestaoImagem uri={q.imagem_url} style={styles.reviewImagemWrapper} />
+                    )}
                     {!acertou && (
                       <View style={styles.reviewAnswers}>
                         <Text style={styles.reviewWrong}>Sua resp.: {userAnswers[i] || "—"}</Text>
@@ -357,7 +410,12 @@ export default function SimuladoNativo() {
               <View style={styles.iaModalHeader}>
                 <MaterialCommunityIcons name="shield" size={28} color="#4F46E5" />
                 <Text style={styles.iaModalTitle}>OSIA Analytics · OSI 2026</Text>
-                <TouchableOpacity onPress={() => setModalIAResultVisible(false)} style={styles.closeHeaderBtn}>
+                <TouchableOpacity
+                  onPress={() => setModalIAResultVisible(false)}
+                  style={styles.closeHeaderBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Fechar painel de diagnóstico"
+                >
                   <Ionicons name="close-circle" size={28} color="#94A3B8" />
                 </TouchableOpacity>
               </View>
@@ -413,7 +471,12 @@ export default function SimuladoNativo() {
       </Modal>
 
       <View style={styles.progressHeader}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.progressBackBtn}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.progressBackBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Sair do simulado"
+        >
           <Ionicons name="close" size={22} color={colors.textLight} />
         </TouchableOpacity>
         <View style={{ flex: 1, marginHorizontal: 12 }}>
@@ -427,13 +490,7 @@ export default function SimuladoNativo() {
       </View>
 
       <Text style={[styles.enunciado, { color: colors.text }]}>{q?.enunciado}</Text>
-      {q?.imagem_url ? (
-        <Image
-          source={{ uri: q.imagem_url }}
-          style={styles.questaoImagem}
-          resizeMode="contain"
-        />
-      ) : null}
+      {q?.imagem_url ? <QuestaoImagem uri={q.imagem_url} /> : null}
       {["a", "b", "c", "d", "e"].map((l) => {
         const texto = q?.[`opcao_${l}`];
         if (!texto) return null;
@@ -464,7 +521,24 @@ const styles = StyleSheet.create({
   progressBarBg: { height: 6, borderRadius: 3 },
   progressBarFill: { height: "100%", borderRadius: 3 },
   enunciado: { fontSize: 18, fontWeight: "bold", marginBottom: 16 },
-  questaoImagem: { width: "100%", height: 200, borderRadius: 12, marginBottom: 20 },
+  imagemWrapper: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 20,
+    backgroundColor: "#E2E8F0",
+    overflow: "hidden",
+  },
+  questaoImagem: { width: "100%", height: "100%" },
+  imagemOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E2E8F0",
+    gap: 6,
+  },
+  imagemErrorText: { color: "#64748B", fontSize: 12, textAlign: "center", paddingHorizontal: 20 },
+  reviewImagemWrapper: { height: 120, marginTop: 10, marginBottom: 4 },
   optBtn: {
     flexDirection: "row",
     alignItems: "center",

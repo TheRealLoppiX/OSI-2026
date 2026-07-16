@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -18,14 +17,17 @@ import {
 import { authService } from "../src/services/auth";
 import { supabase } from "../src/services/supabase";
 import { useAuth } from "../src/context/AuthContext";
-import { usePageReady } from "../src/context/NavigationLoadingContext";
+import { useNavigationLoading, usePageReady } from "../src/context/NavigationLoadingContext";
 import { useTheme } from "../src/context/ThemeContext";
 import { cadastroSchema } from "../src/schemas/authSchema";
+import { appAlert } from "../src/services/appAlert";
+import { friendlyError } from "../src/utils/friendlyError";
 
 type Step = "form" | "otp";
 
 export default function Cadastro() {
   usePageReady();
+  const { startNavigation } = useNavigationLoading();
   const { colors } = useTheme();
   const { setUsuario: setUsuarioLogado } = useAuth();
 
@@ -55,10 +57,10 @@ export default function Cadastro() {
   const handleEnviarCodigo = async () => {
     const validacao = cadastroSchema.safeParse({ nome, email, usuario, instituicao, senha });
     if (!validacao.success) {
-      return Alert.alert("Atenção", validacao.error.issues[0].message);
+      return appAlert.alert("Atenção", validacao.error.issues[0].message);
     }
     if (senha !== confirmarSenha) {
-      return Alert.alert("Atenção", "As senhas não coincidem.");
+      return appAlert.alert("Atenção", "As senhas não coincidem.");
     }
 
     try {
@@ -80,14 +82,14 @@ export default function Cadastro() {
       setStep("otp");
       setTimeout(() => otpRef.current?.focus(), 300);
     } catch (err: any) {
-      Alert.alert("Erro", err.message || "Não foi possível enviar o código.");
+      appAlert.alert("Erro", friendlyError(err, "Não foi possível enviar o código."));
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerificarOtp = async () => {
-    if (otp.length !== 6) return Alert.alert("Atenção", "Digite os 6 dígitos do código.");
+    if (otp.length !== 6) return appAlert.alert("Atenção", "Digite os 6 dígitos do código.");
 
     try {
       setLoading(true);
@@ -100,9 +102,10 @@ export default function Cadastro() {
 
       await authService.saveUser(data.user);
       setUsuarioLogado(data.user);
+      startNavigation();
       router.replace("/(tabs)/home");
     } catch (err: any) {
-      Alert.alert("Código inválido", err.message || "Tente novamente.");
+      appAlert.alert("Código inválido", friendlyError(err, "Tente novamente."));
     } finally {
       setLoading(false);
     }
@@ -125,7 +128,12 @@ export default function Cadastro() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <TouchableOpacity style={styles.backBtn} onPress={handleReenviar}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={handleReenviar}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
+          >
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
 
@@ -191,7 +199,12 @@ export default function Cadastro() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
 
@@ -300,7 +313,12 @@ export default function Cadastro() {
               value={senha}
               onChangeText={setSenha}
             />
-            <TouchableOpacity onPress={() => setShowSenha((v) => !v)} style={styles.eyeBtn}>
+            <TouchableOpacity
+              onPress={() => setShowSenha((v) => !v)}
+              style={styles.eyeBtn}
+              accessibilityRole="button"
+              accessibilityLabel={showSenha ? "Ocultar senha" : "Mostrar senha"}
+            >
               <Ionicons name={showSenha ? "eye-off" : "eye"} size={20} color={colors.textLight} />
             </TouchableOpacity>
           </View>

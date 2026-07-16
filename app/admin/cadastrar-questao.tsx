@@ -1,9 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Buffer } from "buffer";
+import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../src/services/supabase";
 import { useTheme } from "../../src/context/ThemeContext";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function CadastrarQuestao() {
   const { simuladoId, questaoId, questaoData } = useLocalSearchParams();
@@ -26,11 +30,52 @@ export default function CadastrarQuestao() {
   const [justificativa, setJustificativa] = useState(dadosIniciais?.justificativa || "");
   const [referencia, setReferencia] = useState(dadosIniciais?.referencias || "");
   const [dificuldade, setDificuldade] = useState(dadosIniciais?.dificuldade || "Média");
+  const [imagemUrl, setImagemUrl] = useState<string | null>(dadosIniciais?.imagem_url || null);
+  const [uploadingImagem, setUploadingImagem] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const handleSelecionarImagem = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        appAlert.alert("Permissão necessária", "Precisamos de acesso às suas fotos.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.6,
+        base64: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+
+      setUploadingImagem(true);
+      const selectedImage = result.assets[0];
+      const fileName = `questoes/${Date.now()}.png`;
+      const imageBuffer = Buffer.from(selectedImage.base64!, "base64");
+
+      const { error: storageError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, imageBuffer, { contentType: "image/png", upsert: true });
+
+      if (storageError) {
+        throw new Error("Falha no Storage: Verifique as políticas do bucket avatars.");
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(fileName);
+      setImagemUrl(publicUrl);
+    } catch (error: any) {
+      appAlert.alert("Erro no Upload", friendlyError(error, "Não foi possível salvar a imagem."));
+    } finally {
+      setUploadingImagem(false);
+    }
+  };
 
   const salvarQuestao = async () => {
     if (!enunciado || !justificativa || !opcoes.A || !opcoes.B) {
-      Alert.alert("Erro", "Preencha o enunciado, alternativas A e B, e a justificativa.");
+      appAlert.alert("Erro", "Preencha o enunciado, alternativas A e B, e a justificativa.");
       return;
     }
 
@@ -47,6 +92,7 @@ export default function CadastrarQuestao() {
       justificativa,
       referencias: referencia,
       dificuldade,
+      imagem_url: imagemUrl,
     };
 
     let error;
@@ -61,9 +107,9 @@ export default function CadastrarQuestao() {
 
     setLoading(false);
     if (error) {
-      Alert.alert("Erro ao salvar", error.message);
+      appAlert.alert("Erro ao salvar", friendlyError(error, "Não foi possível salvar a questão."));
     } else {
-      Alert.alert("Sucesso", modoEdicao ? "Questão atualizada!" : "Questão adicionada à base da OSI!");
+      appAlert.alert("Sucesso", modoEdicao ? "Questão atualizada!" : "Questão adicionada à base da OSI!");
       router.back();
     }
   };
@@ -73,7 +119,7 @@ export default function CadastrarQuestao() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { backgroundColor: colors.card }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>
@@ -102,6 +148,46 @@ export default function CadastrarQuestao() {
 
         <Text style={[styles.label, { color: colors.text }]}>Enunciado da Questão</Text>
         <TextInput style={[...inputStyle, styles.textArea]} multiline placeholder="Ex: Qual o protocolo de transferência de hipertexto?" placeholderTextColor={colors.textLight} value={enunciado} onChangeText={setEnunciado} />
+
+        <Text style={[styles.label, { color: colors.text }]}>Imagem da Questão (opcional)</Text>
+        {imagemUrl ? (
+          <View style={styles.imagemPreviewBox}>
+            <Image source={{ uri: imagemUrl }} style={styles.imagemPreview} resizeMode="contain" />
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
+              <TouchableOpacity
+                style={[styles.imagemBtn, { borderColor: colors.primary }]}
+                onPress={handleSelecionarImagem}
+                disabled={uploadingImagem}
+              >
+                <Ionicons name="image-outline" size={16} color={colors.primary} />
+                <Text style={[styles.imagemBtnText, { color: colors.primary }]}>Trocar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.imagemBtn, { borderColor: "#EF4444" }]}
+                onPress={() => setImagemUrl(null)}
+                disabled={uploadingImagem}
+              >
+                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                <Text style={[styles.imagemBtnText, { color: "#EF4444" }]}>Remover</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={[styles.imagemUploadBtn, { borderColor: colors.border, backgroundColor: colors.inputBg }]}
+            onPress={handleSelecionarImagem}
+            disabled={uploadingImagem}
+          >
+            {uploadingImagem ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <>
+                <Ionicons name="image-outline" size={22} color={colors.textLight} />
+                <Text style={{ color: colors.textLight, fontSize: 13 }}>Adicionar imagem (gráfico, diagrama, etc.)</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
 
         <Text style={[styles.label, { color: colors.text }]}>Alternativas (Marque a correta no círculo)</Text>
         {(["A", "B", "C", "D", "E"] as const).map((letra) => (
@@ -153,6 +239,28 @@ const styles = StyleSheet.create({
   diffBtnText: { fontWeight: "bold" },
   input: { padding: 15, borderRadius: 12, borderWidth: 1, marginBottom: 15 },
   textArea: { height: 80, textAlignVertical: "top" },
+  imagemUploadBtn: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderRadius: 12,
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 15,
+  },
+  imagemPreviewBox: { marginBottom: 15 },
+  imagemPreview: { width: "100%", height: 180, borderRadius: 12, backgroundColor: "#E2E8F0" },
+  imagemBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  imagemBtnText: { fontWeight: "bold", fontSize: 13 },
   optionRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10 },
   radio: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, justifyContent: "center", alignItems: "center" },
   optionInput: { padding: 10, borderRadius: 10, borderWidth: 1 },

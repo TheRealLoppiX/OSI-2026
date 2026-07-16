@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +11,8 @@ import {
 } from "react-native";
 import { supabase } from "../../src/services/supabase";
 import { useTheme } from "../../src/context/ThemeContext";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function EnviarNotificacao() {
   const { colors } = useTheme();
@@ -20,8 +21,20 @@ export default function EnviarNotificacao() {
   const [loading, setLoading] = useState(false);
 
   const handleSend = async () => {
-    if (!mensagem.trim()) return Alert.alert("Erro", "Escreva uma mensagem.");
+    if (!mensagem.trim()) return appAlert.alert("Erro", "Escreva uma mensagem.");
 
+    // Notificação vai para todos os alunos de uma vez — confirma antes de disparar.
+    appAlert.alert(
+      "Enviar para todos os alunos?",
+      `"${titulo.trim()}"\n\n${mensagem.trim()}`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Enviar", onPress: enviarNotificacao },
+      ]
+    );
+  };
+
+  const enviarNotificacao = async () => {
     setLoading(true);
     try {
       const { error } = await supabase.from("notificacoes").insert([
@@ -29,13 +42,13 @@ export default function EnviarNotificacao() {
       ]);
 
       if (error) {
-        Alert.alert("Erro ao enviar", error.message);
+        appAlert.alert("Erro ao enviar", friendlyError(error, "Não foi possível enviar a notificação."));
       } else {
-        Alert.alert("Sucesso", "Alerta enviado para todos os alunos!");
+        appAlert.alert("Sucesso", "Alerta enviado para todos os alunos!");
         router.back();
       }
     } catch (e: any) {
-      Alert.alert("Erro de Conexão", e.message);
+      appAlert.alert("Erro de Conexão", friendlyError(e, "Verifique sua internet e tente novamente."));
     } finally {
       setLoading(false);
     }
@@ -44,7 +57,7 @@ export default function EnviarNotificacao() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>Disparar Alerta</Text>

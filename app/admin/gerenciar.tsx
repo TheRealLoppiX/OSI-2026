@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   ScrollView,
@@ -15,6 +14,8 @@ import {
 } from "react-native";
 import { supabase } from "../../src/services/supabase";
 import { useTheme } from "../../src/context/ThemeContext";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function GerenciarSimulados() {
   const { colors } = useTheme();
@@ -41,15 +42,15 @@ export default function GerenciarSimulados() {
   useEffect(() => { fetchSimulados(); }, []);
 
   const handleCriarSimulado = async () => {
-    if (!novoTitulo || !novaMateria) return Alert.alert("Erro", "Título e Matéria são obrigatórios.");
+    if (!novoTitulo || !novaMateria) return appAlert.alert("Erro", "Título e Matéria são obrigatórios.");
     const { error } = await supabase.from("simulados").insert([{ titulo: novoTitulo, materia: novaMateria, url_google_forms: novaUrl || null }]);
     if (!error) {
       setModalVisible(false);
       setNovoTitulo(""); setNovaMateria(""); setNovaUrl("");
       fetchSimulados();
-      Alert.alert("Sucesso", "Simulado criado!");
+      appAlert.alert("Sucesso", "Simulado criado!");
     } else {
-      Alert.alert("Erro", error.message);
+      appAlert.alert("Erro", friendlyError(error, "Não foi possível criar o simulado."));
     }
   };
 
@@ -78,8 +79,22 @@ export default function GerenciarSimulados() {
     } as any);
   };
 
-  const handleDeletarQuestao = (questao: any) => {
-    Alert.alert("Excluir questão", `Remover esta questão do banco?\n\n"${questao.enunciado.substring(0, 80)}..."`, [
+  const handleDeletarQuestao = async (questao: any) => {
+    // Evita apagar uma questão que ainda está vinculada a algum simulado —
+    // deixaria o array questoes_ids desse simulado com um id inválido.
+    const { data: vinculados } = await supabase
+      .from("simulados")
+      .select("id, titulo")
+      .contains("questoes_ids", [questao.id]);
+
+    if (vinculados && vinculados.length > 0) {
+      return appAlert.alert(
+        "Não é possível excluir",
+        `Esta questão está vinculada a: ${vinculados.map((s: any) => s.titulo).join(", ")}. Desvincule-a desses simulados antes de excluir.`
+      );
+    }
+
+    appAlert.alert("Excluir questão", `Remover esta questão do banco?\n\n"${questao.enunciado.substring(0, 80)}..."`, [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Excluir", style: "destructive",
@@ -107,18 +122,32 @@ export default function GerenciarSimulados() {
       setSalvandoVinculo(true);
       const { error } = await supabase.from("simulados").update({ questoes_ids: questoesSelecionadas, total_questoes: questoesSelecionadas.length }).eq("id", simuladoSelecionado.id);
       if (error) throw error;
-      Alert.alert("Sucesso!", `${questoesSelecionadas.length} questões vinculadas.`);
+      appAlert.alert("Sucesso!", `${questoesSelecionadas.length} questões vinculadas.`);
       setModalQuestoesVisible(false);
       fetchSimulados();
     } catch (error: any) {
-      Alert.alert("Erro ao Vincular", error.message);
+      appAlert.alert("Erro ao Vincular", friendlyError(error, "Não foi possível vincular as questões."));
     } finally {
       setSalvandoVinculo(false);
     }
   };
 
-  const handleDeletarSimulado = (simulado: any) => {
-    Alert.alert("Excluir Simulado", `Deseja excluir "${simulado.titulo}"?`, [
+  const handleDeletarSimulado = async (simulado: any) => {
+    // Evita apagar um simulado que já tem tentativas de alunos registradas —
+    // perderia o histórico/gabarito referenciado por essas tentativas.
+    const { count } = await supabase
+      .from("tentativas")
+      .select("id", { count: "exact", head: true })
+      .eq("simulado_id", simulado.id);
+
+    if (count && count > 0) {
+      return appAlert.alert(
+        "Não é possível excluir",
+        `${count} aluno(s) já têm tentativas registradas neste simulado. Excluir agora apagaria esse histórico.`
+      );
+    }
+
+    appAlert.alert("Excluir Simulado", `Deseja excluir "${simulado.titulo}"?`, [
       { text: "Cancelar", style: "cancel" },
       { text: "Excluir", style: "destructive", onPress: async () => { await supabase.from("simulados").delete().eq("id", simulado.id); fetchSimulados(); } },
     ]);
@@ -129,11 +158,11 @@ export default function GerenciarSimulados() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.text }]}>Simulados</Text>
-        <TouchableOpacity onPress={fetchSimulados}>
+        <TouchableOpacity onPress={fetchSimulados} accessibilityRole="button" accessibilityLabel="Atualizar lista">
           <Ionicons name="refresh" size={24} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -237,7 +266,11 @@ export default function GerenciarSimulados() {
                   const isChecked = questoesSelecionadas.includes(item.id);
                   return (
                     <View style={[styles.questaoRow, { backgroundColor: colors.bg, borderColor: colors.border }, isChecked && { borderColor: colors.primary, backgroundColor: colors.primary + "15" }]}>
-                      <TouchableOpacity onPress={() => handleToggleSelect(item.id)}>
+                      <TouchableOpacity
+                        onPress={() => handleToggleSelect(item.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={isChecked ? "Remover seleção da questão" : "Selecionar questão"}
+                      >
                         <Ionicons name={isChecked ? "checkbox" : "square-outline"} size={22} color={isChecked ? colors.primary : "#94A3B8"} />
                       </TouchableOpacity>
                       <TouchableOpacity style={{ flex: 1 }} onPress={() => handleToggleSelect(item.id)}>
@@ -254,10 +287,20 @@ export default function GerenciarSimulados() {
                         </View>
                       </TouchableOpacity>
                       {/* Ações de edição e exclusão da questão */}
-                      <TouchableOpacity onPress={() => handleEditarQuestao(item)} style={styles.questaoAction}>
+                      <TouchableOpacity
+                        onPress={() => handleEditarQuestao(item)}
+                        style={styles.questaoAction}
+                        accessibilityRole="button"
+                        accessibilityLabel="Editar questão"
+                      >
                         <Ionicons name="create-outline" size={18} color={colors.primary} />
                       </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeletarQuestao(item)} style={styles.questaoAction}>
+                      <TouchableOpacity
+                        onPress={() => handleDeletarQuestao(item)}
+                        style={styles.questaoAction}
+                        accessibilityRole="button"
+                        accessibilityLabel="Excluir questão"
+                      >
                         <Ionicons name="trash-outline" size={18} color="#EF4444" />
                       </TouchableOpacity>
                     </View>
@@ -298,13 +341,28 @@ export default function GerenciarSimulados() {
                 <Text style={[styles.cardQtd, { color: colors.primary }]}>{item.questoes_ids?.length || 0} questões vinculadas</Text>
               </View>
               <View style={styles.cardActions}>
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#EFF6FF" }]} onPress={() => router.push({ pathname: "/admin/cadastrar-questao", params: { simuladoId: item.id } } as any)}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: "#EFF6FF" }]}
+                  onPress={() => router.push({ pathname: "/admin/cadastrar-questao", params: { simuladoId: item.id } } as any)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Criar questão para este simulado"
+                >
                   <Ionicons name="create-outline" size={18} color={colors.primary} />
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#F0FDF4" }]} onPress={() => abrirVinculoQuestoes(item)}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: "#F0FDF4" }]}
+                  onPress={() => abrirVinculoQuestoes(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Vincular questões"
+                >
                   <Ionicons name="link-outline" size={18} color="#10B981" />
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionBtn, { backgroundColor: "#FFF5F5" }]} onPress={() => handleDeletarSimulado(item)}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: "#FFF5F5" }]}
+                  onPress={() => handleDeletarSimulado(item)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Excluir simulado"
+                >
                   <Ionicons name="trash-outline" size={18} color="#EF4444" />
                 </TouchableOpacity>
               </View>
@@ -313,7 +371,12 @@ export default function GerenciarSimulados() {
         />
       )}
 
-      <TouchableOpacity style={[styles.fab, { backgroundColor: colors.primary }]} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        onPress={() => setModalVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Criar novo simulado"
+      >
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
     </View>

@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import { useNavigationLoading } from "../../src/context/NavigationLoadingContext
 import { useTheme } from "../../src/context/ThemeContext";
 import { authService } from "../../src/services/auth";
 import { supabase } from "../../src/services/supabase";
+import { appAlert } from "../../src/services/appAlert";
 
 const SECONDARY = "#DC2626";
 const ACCENT = "#FBBF24";
@@ -55,7 +55,7 @@ export default function AdminDashboard() {
   }, []);
 
   const handleLogout = async () => {
-    Alert.alert("Sair", "Deseja encerrar a sessão administrativa?", [
+    appAlert.alert("Sair", "Deseja encerrar a sessão administrativa?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Sair",
@@ -78,7 +78,12 @@ export default function AdminDashboard() {
           { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <TouchableOpacity
+          style={styles.logoutBtn}
+          onPress={handleLogout}
+          accessibilityRole="button"
+          accessibilityLabel="Sair da sessão administrativa"
+        >
           <Ionicons name="log-out-outline" size={26} color={SECONDARY} />
           <Text style={[styles.logoutText, { color: SECONDARY }]}>SAIR</Text>
         </TouchableOpacity>
@@ -87,7 +92,11 @@ export default function AdminDashboard() {
           Painel Docente
         </Text>
 
-        <TouchableOpacity onPress={fetchStats}>
+        <TouchableOpacity
+          onPress={fetchStats}
+          accessibilityRole="button"
+          accessibilityLabel="Atualizar estatísticas"
+        >
           <Ionicons name="refresh-circle" size={30} color={colors.primary} />
         </TouchableOpacity>
       </View>

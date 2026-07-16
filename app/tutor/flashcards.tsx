@@ -6,7 +6,7 @@ import JSZip from "jszip";
 import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,6 +15,8 @@ import {
 } from "react-native";
 import ViewShot from "react-native-view-shot";
 import { useTheme } from "../../src/context/ThemeContext";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function FlashcardGenerator() {
   const { dados, titulo } = useLocalSearchParams();
@@ -63,7 +65,7 @@ export default function FlashcardGenerator() {
         });
       }
     } catch (error: any) {
-      Alert.alert("Erro", "Falha ao gerar os arquivos: " + error.message);
+      appAlert.alert("Erro", friendlyError(error, "Falha ao gerar os arquivos dos flashcards."));
     } finally {
       setLoading(false);
     }
@@ -72,7 +74,11 @@ export default function FlashcardGenerator() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { backgroundColor: colors.card }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Flashcards de Revisão</Text>
@@ -105,6 +111,13 @@ export default function FlashcardGenerator() {
 
               <Text style={[styles.label, { color: colors.primary }]}>CONCEITO</Text>
               <Text style={[styles.enunciado, { color: colors.text }]}>{item.enunciado}</Text>
+              {item.imagem_url && (
+                <Image
+                  source={{ uri: item.imagem_url }}
+                  style={styles.cardImagem}
+                  resizeMode="contain"
+                />
+              )}
 
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
@@ -183,6 +196,7 @@ const styles = StyleSheet.create({
   refText: { fontSize: 10, fontWeight: "600" },
   label: { fontSize: 9, fontWeight: "900", letterSpacing: 1, marginBottom: 8 },
   enunciado: { fontSize: 16, fontWeight: "bold", marginBottom: 15 },
+  cardImagem: { width: "100%", height: 140, borderRadius: 12, marginBottom: 15, backgroundColor: "#E2E8F0" },
   divider: { height: 1, marginVertical: 10 },
   justificativa: { fontSize: 14, lineHeight: 22 },
   cardFooter: {

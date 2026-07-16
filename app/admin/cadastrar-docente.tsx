@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +12,8 @@ import {
 } from "react-native";
 import { authService } from "../../src/services/auth";
 import { useTheme } from "../../src/context/ThemeContext";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function CadastrarDocente() {
   const { colors } = useTheme();
@@ -24,11 +25,11 @@ export default function CadastrarDocente() {
 
   const handleCadastroDocente = async () => {
     if (!nome.trim() || !email.trim() || !usuario.trim() || !senha.trim()) {
-      Alert.alert("Atenção", "Por favor, preencha todos os campos.");
+      appAlert.alert("Atenção", "Por favor, preencha todos os campos.");
       return;
     }
     if (senha.length < 6) {
-      Alert.alert("Atenção", "A senha do docente deve ter no mínimo 6 caracteres.");
+      appAlert.alert("Atenção", "A senha do docente deve ter no mínimo 6 caracteres.");
       return;
     }
 
@@ -40,10 +41,10 @@ export default function CadastrarDocente() {
         usuario: usuario.trim(),
         senha,
       });
-      Alert.alert("Sucesso!", `O docente ${nome} foi cadastrado como administrador.`);
+      appAlert.alert("Sucesso!", `O docente ${nome} foi cadastrado como administrador.`);
       router.back();
     } catch (error: any) {
-      Alert.alert("Erro no Cadastro", error.message);
+      appAlert.alert("Erro no Cadastro", friendlyError(error, "Não foi possível cadastrar o docente."));
     } finally {
       setLoading(false);
     }
@@ -56,7 +57,7 @@ export default function CadastrarDocente() {
       contentContainerStyle={[styles.container, { backgroundColor: colors.bg }]}
       keyboardShouldPersistTaps="handled"
     >
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
         <Ionicons name="arrow-back" size={24} color={colors.text} />
       </TouchableOpacity>
 

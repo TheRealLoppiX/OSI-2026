@@ -3,12 +3,12 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +17,8 @@ import {
 } from "react-native";
 import { supabase } from "../../src/services/supabase";
 import { useTheme } from "../../src/context/ThemeContext";
+import { appAlert } from "../../src/services/appAlert";
+import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function ListaUsuarios() {
   const { colors } = useTheme();
@@ -54,7 +56,7 @@ export default function ListaUsuarios() {
   };
 
   const handleUpdate = async () => {
-    if (!editUser) return Alert.alert("Erro", "O login (username) é obrigatório.");
+    if (!editUser) return appAlert.alert("Erro", "O login (username) é obrigatório.");
 
     setUpdating(true);
     const updatePayload: any = {
@@ -68,16 +70,16 @@ export default function ListaUsuarios() {
     setUpdating(false);
 
     if (!error) {
-      Alert.alert("Sucesso", "Dados do aluno atualizados!");
+      appAlert.alert("Sucesso", "Dados do aluno atualizados!");
       setModalVisible(false);
       fetchUsers();
     } else {
-      Alert.alert("Erro", "Falha ao atualizar: " + error.message);
+      appAlert.alert("Erro", friendlyError(error, "Falha ao atualizar o aluno."));
     }
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    appAlert.alert(
       "Excluir aluno",
       `Remover permanentemente "${selectedUser?.usuario}" do sistema? Esta ação não pode ser desfeita.`,
       [
@@ -91,7 +93,7 @@ export default function ListaUsuarios() {
               setModalVisible(false);
               fetchUsers();
             } else {
-              Alert.alert("Erro", "Falha ao excluir: " + error.message);
+              appAlert.alert("Erro", friendlyError(error, "Falha ao excluir o aluno."));
             }
           },
         },
@@ -102,11 +104,11 @@ export default function ListaUsuarios() {
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Monitorar Alunos</Text>
-        <TouchableOpacity onPress={fetchUsers}>
+        <TouchableOpacity onPress={fetchUsers} accessibilityRole="button" accessibilityLabel="Atualizar lista">
           <Ionicons name="refresh" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -142,13 +144,17 @@ export default function ListaUsuarios() {
       {/* Modal de edição do aluno */}
       <Modal visible={modalVisible} animationType="fade" transparent>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.modalOverlay}
         >
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
           <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Gerenciar Aluno</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity onPress={() => setModalVisible(false)} accessibilityRole="button" accessibilityLabel="Fechar">
                 <Ionicons name="close" size={24} color={colors.textLight} />
               </TouchableOpacity>
             </View>
@@ -227,6 +233,7 @@ export default function ListaUsuarios() {
               </TouchableOpacity>
             </View>
           </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -291,7 +298,8 @@ const styles = StyleSheet.create({
   editIcon: { width: 28, height: 28, borderRadius: 14, justifyContent: "center", alignItems: "center" },
   userName: { fontSize: 16, fontWeight: "bold" },
   userSchool: { fontSize: 12 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", padding: 20 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)" },
+  modalScrollContent: { flexGrow: 1, justifyContent: "center", padding: 20 },
   modalContent: { padding: 25, borderRadius: 28, elevation: 10 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   modalTitle: { fontSize: 18, fontWeight: "bold" },
