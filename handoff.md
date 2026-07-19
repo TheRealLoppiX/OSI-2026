@@ -255,18 +255,29 @@ causa de cada bug:
   );
   ```
 
-**Importante:** sem rodar os itens 1 e 2 acima, BUG-003 e BUG-004 **continuam
-sem correção real** — as mudanças de código só tornam o app honesto sobre a
-falha (mostra erro em vez de fingir sucesso), mas a causa raiz é a policy
-ausente no banco. BUG-001/BUG-002 já estão de fato corrigidos neste commit
-(o item 3 do SQL acima é reforço extra, não pré-requisito).
+**Atualização — SQL aplicado e verificado (19/07/2026):** o usuário rodou o
+SQL acima manualmente no SQL Editor do Supabase Studio (na primeira
+tentativa, sem querer, no projeto errado da conta — "lock" em vez de
+"OSI2026"; na segunda tentativa, no projeto certo). Reconfirmei via query
+somente-leitura na Management API que as 4 alterações estão realmente no
+projeto `yvdnsygxztmgmkaqrpxq` (OSI2026):
+- Policy `Acesso total anonimo questoes` (ALL, anon+authenticated) existe em
+  `questoes`.
+- Policy `Permitir exclusao anonima de usuarios` (DELETE, anon+authenticated)
+  existe em `usuarios`.
+- Trigger `trg_prevent_delete_instituicao_vinculada` existe em `instituicoes`.
+- A instituição "Universidade Federal do Vale do São Francisco" (o aluno
+  órfão da auditoria) foi recadastrada.
+
+**Os 4 bugs do relatório do Bruno (BUG-001 a BUG-004) estão corrigidos.**
 
 **Falta:**
-1. Rodar o SQL acima no banco (Supabase Studio ou reautorização).
-2. Testar em device: cadastrar questão avulsa, excluir aluno, excluir
-   instituição com/sem vínculo, e o fluxo IA→simulado→voltar do BUG-002.
-3. **O token de acesso do Supabase foi colado diretamente no chat** — como
-   ele já foi exposto nesta conversa, recomendo revogá-lo/gerar um novo em
-   Supabase → Account → Access Tokens assim que possível, mesmo após aplicar
-   os fixes.
-4. Novo build EAS para o Bruno validar a nova rodada.
+1. Testar em device: cadastrar questão avulsa no Banco de Questões, excluir
+   aluno, excluir instituição com/sem vínculo, e o fluxo IA→simulado→voltar
+   do BUG-002 — nenhuma dessas correções foi validada num device/emulador
+   real, só por leitura de código + queries de confirmação no banco.
+2. **O token de acesso do Supabase foi colado diretamente no chat várias
+   vezes nesta sessão** — como ele já foi exposto na conversa, é fortemente
+   recomendado revogá-lo e gerar um novo em Supabase → Account → Access
+   Tokens agora que os fixes já foram aplicados.
+3. Novo build EAS para o Bruno validar a nova rodada de correções.
