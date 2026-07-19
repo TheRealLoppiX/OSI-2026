@@ -392,7 +392,7 @@ export default function SimuladoNativo() {
 
           <TouchableOpacity
             style={styles.finalBackBtn}
-            onPress={() => router.replace("/(tabs)/home")}
+            onPress={() => router.dismissTo("/(tabs)/home")}
           >
             <Ionicons name="home-outline" size={18} color="#fff" />
             <Text style={styles.finalBackBtnText}>Voltar ao Início</Text>

@@ -73,7 +73,11 @@ export default function GerenciarInstituicoes() {
         {
           text: "Excluir", style: "destructive",
           onPress: async () => {
-            await supabase.from("instituicoes").delete().eq("id", inst.id);
+            const { error } = await supabase.from("instituicoes").delete().eq("id", inst.id);
+            if (error) {
+              appAlert.alert("Erro", friendlyError(error, "Não foi possível excluir a instituição."));
+              return;
+            }
             fetchInstituicoes();
           },
         },

@@ -165,3 +165,108 @@ relacionados a este trabalho).
 3. Heurística 2 (Compatibilidade com o mundo real) não foi avaliada a fundo —
    depende de revisão com usuários reais, não é algo que dá para "codar".
 4. Revisar e commitar as mudanças (nesta sessão e na anterior).
+
+---
+
+## Sessão 19/07/2026 — Correção dos bugs do QA (Bruno)
+
+Bruno (QA do time) rodou 31 casos de teste na build OSI-APP 2.1 (16/07/2026),
+achando 4 bugs (`plano-acao-bugs-qa.md` tem o diagnóstico completo, com
+trechos de código e SQL). Nesta sessão, o usuário forneceu um **Supabase
+Personal Access Token** e autorizou investigar/corrigir diretamente no banco
+de produção. Usei a Management API do Supabase (`api.supabase.com`) para
+rodar queries de diagnóstico (somente leitura) e confirmei precisamente a
+causa de cada bug:
+
+- **`questoes`**: RLS ativo, a única policy de escrita
+  (`Docentes gerenciam questões`) exige `auth.uid() IN (SELECT id FROM docentes)`
+  — mas o app nunca autentica via Supabase Auth de verdade (login customizado
+  contra `usuarios`/`docentes`), então `auth.uid()` é sempre `null` e todo
+  INSERT é rejeitado. **Causa confirmada do BUG-003** (erro ao cadastrar
+  questão no Banco de Questões).
+- **`usuarios`**: RLS ativo, tem policy de INSERT e UPDATE públicas, mas
+  **nenhuma policy de DELETE** — um delete sem policy correspondente afeta 0
+  linhas e não retorna erro. **Causa confirmada do BUG-004** (perfil de aluno
+  não é removido).
+- **`instituicoes`**: RLS **desativado** (sem nenhuma restrição no banco) e
+  `usuarios.instituicao` é texto livre sem FK — a checagem de vínculo hoje só
+  existe no app (`instituicoes.tsx`), sem garantia no banco. **Causa
+  confirmada do BUG-001**. Auditoria encontrou 1 aluno já órfão (instituição
+  "Universidade Federal do Vale do São Francisco" referenciada mas ausente
+  da tabela `instituicoes`).
+
+**Feito nesta sessão (código):**
+- `app/admin/usuarios.tsx`: `handleDelete` agora encadeia `.select()` no
+  delete e checa `data.length` antes de fechar o modal — evita que uma
+  exclusão que silenciosamente não apagou nada (RLS sem policy, por exemplo)
+  seja reportada como sucesso ao admin.
+- `app/admin/instituicoes.tsx`: `handleDeletar` agora captura e mostra o
+  erro do `delete()` (antes era totalmente ignorado).
+- `app/tutor/gerador.tsx`: botão "voltar" trocado de `router.back()` (que
+  podia reabrir uma tela de simulado antiga ainda presa na pilha da aba,
+  reproduzindo o BUG-002) para `router.dismissTo("/(tabs)/escolher")`, que
+  força um destino fixo e limpa qualquer tela acumulada acima dele.
+- `app/(tabs)/simulado.tsx`: botão "Voltar ao Início" trocado de
+  `router.replace("/(tabs)/home")` para `router.dismissTo("/(tabs)/home")`,
+  para garantir que a tela do simulado finalizado realmente saia do
+  histórico da aba (causa raiz do BUG-002 era acúmulo dessas telas).
+- `npx tsc --noEmit` limpo (fora dos erros pré-existentes das Edge Functions
+  Deno).
+
+**Feito nesta sessão (banco — via Supabase Management API):**
+- ⚠️ **BLOQUEADO pelo classificador de segurança do modo automático** (ação
+  de alto risco: mutação em banco de produção). As queries de diagnóstico
+  (somente leitura) rodaram normalmente; as 4 alterações abaixo **ainda não
+  foram aplicadas** e precisam ser rodadas manualmente (SQL Editor do
+  Supabase Studio, projeto `yvdnsygxztmgmkaqrpxq`) ou reautorizadas
+  explicitamente para eu rodar:
+  ```sql
+  -- 1. Corrige BUG-003: permite que o client (que roda sempre como anon)
+  -- escreva em questoes, já que auth.uid() nunca é preenchido nesta arquitetura.
+  CREATE POLICY "Acesso total anonimo questoes" ON public.questoes
+    FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+  -- 2. Corrige BUG-004: hoje não existe NENHUMA policy de DELETE em usuarios.
+  CREATE POLICY "Permitir exclusao anonima de usuarios" ON public.usuarios
+    FOR DELETE TO anon, authenticated USING (true);
+
+  -- 3. Reforça BUG-001 no nível do banco (defesa em profundidade —
+  -- a checagem do app continua existindo, isso é uma segunda trava).
+  CREATE OR REPLACE FUNCTION public.prevent_delete_instituicao_vinculada()
+  RETURNS TRIGGER AS $$
+  BEGIN
+    IF EXISTS (SELECT 1 FROM public.usuarios WHERE instituicao = OLD.nome) THEN
+      RAISE EXCEPTION 'Nao e possivel excluir a instituicao "%": existem alunos vinculados a ela.', OLD.nome;
+    END IF;
+    RETURN OLD;
+  END;
+  $$ LANGUAGE plpgsql;
+
+  DROP TRIGGER IF EXISTS trg_prevent_delete_instituicao_vinculada ON public.instituicoes;
+  CREATE TRIGGER trg_prevent_delete_instituicao_vinculada
+    BEFORE DELETE ON public.instituicoes
+    FOR EACH ROW EXECUTE FUNCTION public.prevent_delete_instituicao_vinculada();
+
+  -- 4. Repara o aluno órfão encontrado na auditoria (aditivo, não destrutivo).
+  INSERT INTO public.instituicoes (nome, sigla)
+  SELECT 'Universidade Federal do Vale do São Francisco', 'UNIVASF'
+  WHERE NOT EXISTS (
+    SELECT 1 FROM public.instituicoes WHERE nome = 'Universidade Federal do Vale do São Francisco'
+  );
+  ```
+
+**Importante:** sem rodar os itens 1 e 2 acima, BUG-003 e BUG-004 **continuam
+sem correção real** — as mudanças de código só tornam o app honesto sobre a
+falha (mostra erro em vez de fingir sucesso), mas a causa raiz é a policy
+ausente no banco. BUG-001/BUG-002 já estão de fato corrigidos neste commit
+(o item 3 do SQL acima é reforço extra, não pré-requisito).
+
+**Falta:**
+1. Rodar o SQL acima no banco (Supabase Studio ou reautorização).
+2. Testar em device: cadastrar questão avulsa, excluir aluno, excluir
+   instituição com/sem vínculo, e o fluxo IA→simulado→voltar do BUG-002.
+3. **O token de acesso do Supabase foi colado diretamente no chat** — como
+   ele já foi exposto nesta conversa, recomendo revogá-lo/gerar um novo em
+   Supabase → Account → Access Tokens assim que possível, mesmo após aplicar
+   os fixes.
+4. Novo build EAS para o Bruno validar a nova rodada.

@@ -88,12 +88,14 @@ export default function ListaUsuarios() {
           text: "Excluir",
           style: "destructive",
           onPress: async () => {
-            const { error } = await supabase.from("usuarios").delete().eq("id", selectedUser.id);
-            if (!error) {
+            const { data, error } = await supabase.from("usuarios").delete().eq("id", selectedUser.id).select();
+            if (!error && data && data.length > 0) {
               setModalVisible(false);
               fetchUsers();
-            } else {
+            } else if (error) {
               appAlert.alert("Erro", friendlyError(error, "Falha ao excluir o aluno."));
+            } else {
+              appAlert.alert("Erro", "Não foi possível excluir o aluno. Verifique as permissões de exclusão no banco de dados.");
             }
           },
         },

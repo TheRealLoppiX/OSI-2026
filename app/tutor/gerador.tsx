@@ -101,7 +101,7 @@ export default function GeradorSimulado() {
     >
       <View style={[styles.header, { backgroundColor: colors.bg }]}>
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => router.dismissTo("/(tabs)/escolher" as any)}
           accessibilityRole="button"
           accessibilityLabel="Voltar"
         >
