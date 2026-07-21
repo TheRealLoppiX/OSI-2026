@@ -73,7 +73,9 @@ function RootLayoutInner() {
     const estaNaAreaRestrita =
       rotaRaiz === "(tabs)" ||
       rotaRaiz === "admin" ||
-      rotaRaiz === "tutor";
+      rotaRaiz === "tutor" ||
+      rotaRaiz === "ajuda" ||
+      rotaRaiz === "webview";
 
     if (usuarioLogado && !estaNaAreaRestrita && !jaRedirecionouGlobal) {
       jaRedirecionouGlobal = true;

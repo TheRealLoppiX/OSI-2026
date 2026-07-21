@@ -118,7 +118,8 @@ export default function PerfilAluno() {
       const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(fileName);
       const updatedUser = { ...userData, avatar_url: publicUrl };
 
-      await supabase.from("usuarios").update({ avatar_url: publicUrl }).eq("id", userId);
+      const { error: updateError } = await supabase.from("usuarios").update({ avatar_url: publicUrl }).eq("id", userId);
+      if (updateError) throw updateError;
       setUserData(updatedUser);
       await authService.saveUser(updatedUser);
 

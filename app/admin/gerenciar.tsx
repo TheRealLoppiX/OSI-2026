@@ -27,10 +27,11 @@ export default function GerenciarSimulados() {
   const [novaUrl, setNovaUrl] = useState("");
   const [modalQuestoesVisible, setModalQuestoesVisible] = useState(false);
   const [questoesBanco, setQuestoesBanco] = useState<any[]>([]);
-  const [questoesSelecionadas, setQuestoesSelecionadas] = useState<number[]>([]);
+  const [questoesSelecionadas, setQuestoesSelecionadas] = useState<string[]>([]);
   const [simuladoSelecionado, setSimuladoSelecionado] = useState<any>(null);
   const [loadingQuestoes, setLoadingQuestoes] = useState(false);
   const [salvandoVinculo, setSalvandoVinculo] = useState(false);
+  const [buscaQuestao, setBuscaQuestao] = useState("");
 
   const fetchSimulados = async () => {
     setLoading(true);
@@ -57,6 +58,7 @@ export default function GerenciarSimulados() {
   const abrirVinculoQuestoes = async (simulado: any) => {
     setSimuladoSelecionado(simulado);
     setQuestoesSelecionadas(simulado.questoes_ids || []);
+    setBuscaQuestao("");
     setModalQuestoesVisible(true);
     setLoadingQuestoes(true);
     try {
@@ -67,7 +69,7 @@ export default function GerenciarSimulados() {
     }
   };
 
-  const handleToggleSelect = (id: number) => {
+  const handleToggleSelect = (id: string) => {
     setQuestoesSelecionadas((prev) => prev.includes(id) ? prev.filter((qId) => qId !== id) : [...prev, id]);
   };
 
@@ -99,13 +101,36 @@ export default function GerenciarSimulados() {
       {
         text: "Excluir", style: "destructive",
         onPress: async () => {
-          await supabase.from("questoes").delete().eq("id", questao.id);
+          const { data, error } = await supabase.from("questoes").delete().eq("id", questao.id).select();
+          if (error) return appAlert.alert("Erro", friendlyError(error, "Falha ao excluir a questão."));
+          if (!data || data.length === 0) {
+            return appAlert.alert("Erro", "Não foi possível excluir a questão. Verifique as permissões de exclusão no banco de dados.");
+          }
           // Remove dos vínculos do simulado atual se estava selecionada
           setQuestoesSelecionadas((prev) => prev.filter((id) => id !== questao.id));
           setQuestoesBanco((prev) => prev.filter((q) => q.id !== questao.id));
         },
       },
     ]);
+  };
+
+  const questoesFiltradas = buscaQuestao.trim()
+    ? questoesBanco.filter((q) => {
+        const termo = buscaQuestao.trim().toLowerCase();
+        return (
+          q.enunciado?.toLowerCase().includes(termo) ||
+          q.materia?.toLowerCase().includes(termo) ||
+          q.dificuldade?.toLowerCase().includes(termo)
+        );
+      })
+    : questoesBanco;
+
+  const handleSelecionarFiltradas = () => {
+    setQuestoesSelecionadas((prev) => {
+      const ids = questoesFiltradas.map((q) => q.id);
+      const todasJaSelecionadas = ids.every((id) => prev.includes(id));
+      return todasJaSelecionadas ? prev.filter((id) => !ids.includes(id)) : [...new Set([...prev, ...ids])];
+    });
   };
 
   // Estatísticas simples derivadas do banco de questões já carregado
@@ -120,8 +145,15 @@ export default function GerenciarSimulados() {
   const handleSalvarQuestoesNoSimulado = async () => {
     try {
       setSalvandoVinculo(true);
-      const { error } = await supabase.from("simulados").update({ questoes_ids: questoesSelecionadas, total_questoes: questoesSelecionadas.length }).eq("id", simuladoSelecionado.id);
+      const { data, error } = await supabase
+        .from("simulados")
+        .update({ questoes_ids: questoesSelecionadas, total_questoes: questoesSelecionadas.length })
+        .eq("id", simuladoSelecionado.id)
+        .select();
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Não foi possível confirmar o vínculo. Verifique as permissões de escrita no banco de dados.");
+      }
       appAlert.alert("Sucesso!", `${questoesSelecionadas.length} questões vinculadas.`);
       setModalQuestoesVisible(false);
       fetchSimulados();
@@ -149,7 +181,17 @@ export default function GerenciarSimulados() {
 
     appAlert.alert("Excluir Simulado", `Deseja excluir "${simulado.titulo}"?`, [
       { text: "Cancelar", style: "cancel" },
-      { text: "Excluir", style: "destructive", onPress: async () => { await supabase.from("simulados").delete().eq("id", simulado.id); fetchSimulados(); } },
+      {
+        text: "Excluir", style: "destructive",
+        onPress: async () => {
+          const { data, error } = await supabase.from("simulados").delete().eq("id", simulado.id).select();
+          if (error) return appAlert.alert("Erro", friendlyError(error, "Falha ao excluir o simulado."));
+          if (!data || data.length === 0) {
+            return appAlert.alert("Erro", "Não foi possível excluir o simulado. Verifique as permissões de exclusão no banco de dados.");
+          }
+          fetchSimulados();
+        },
+      },
     ]);
   };
 
@@ -250,6 +292,34 @@ export default function GerenciarSimulados() {
               </View>
             )}
 
+            {!loadingQuestoes && questoesBanco.length > 0 && (
+              <View style={[styles.buscaRow, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
+                <Ionicons name="search" size={16} color={colors.textLight} />
+                <TextInput
+                  style={[styles.buscaInput, { color: colors.text }]}
+                  placeholder="Buscar por enunciado, matéria ou dificuldade..."
+                  placeholderTextColor={colors.textLight}
+                  value={buscaQuestao}
+                  onChangeText={setBuscaQuestao}
+                />
+                {buscaQuestao.length > 0 && (
+                  <TouchableOpacity onPress={() => setBuscaQuestao("")} accessibilityRole="button" accessibilityLabel="Limpar busca">
+                    <Ionicons name="close-circle" size={16} color={colors.textLight} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+
+            {!loadingQuestoes && buscaQuestao.trim().length > 0 && (
+              <TouchableOpacity onPress={handleSelecionarFiltradas} style={styles.selecionarFiltradasBtn}>
+                <Text style={[styles.selecionarFiltradasText, { color: colors.primary }]}>
+                  {questoesFiltradas.every((q) => questoesSelecionadas.includes(q.id)) && questoesFiltradas.length > 0
+                    ? `Desmarcar ${questoesFiltradas.length} resultado(s)`
+                    : `Selecionar ${questoesFiltradas.length} resultado(s)`}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             {loadingQuestoes ? (
               <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 30 }} />
             ) : questoesBanco.length === 0 ? (
@@ -257,9 +327,14 @@ export default function GerenciarSimulados() {
                 <Ionicons name="help-buoy-outline" size={40} color="#CBD5E1" />
                 <Text style={[styles.emptyText, { color: colors.textLight }]}>Nenhuma questão no banco ainda.</Text>
               </View>
+            ) : questoesFiltradas.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="search-outline" size={40} color="#CBD5E1" />
+                <Text style={[styles.emptyText, { color: colors.textLight }]}>Nenhuma questão encontrada para "{buscaQuestao}".</Text>
+              </View>
             ) : (
               <FlatList
-                data={questoesBanco}
+                data={questoesFiltradas}
                 keyExtractor={(item) => item.id.toString()}
                 contentContainerStyle={{ paddingBottom: 10 }}
                 renderItem={({ item }) => {
@@ -407,6 +482,10 @@ const styles = StyleSheet.create({
   btn: { flex: 1, padding: 15, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   questaoRow: { flexDirection: "row", alignItems: "center", padding: 12, borderWidth: 1, borderRadius: 12, marginBottom: 8, gap: 10 },
   questaoAction: { padding: 4 },
+  buscaRow: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 },
+  buscaInput: { flex: 1, fontSize: 13, padding: 0 },
+  selecionarFiltradasBtn: { alignSelf: "flex-start", marginBottom: 8 },
+  selecionarFiltradasText: { fontSize: 12, fontWeight: "600" },
   statsRow: { flexDirection: "row", borderRadius: 12, padding: 10, marginBottom: 10, gap: 4, flexWrap: "wrap" },
   statChip: { flex: 1, minWidth: 50, alignItems: "center", padding: 6 },
   statNum: { fontSize: 16, fontWeight: "900" },

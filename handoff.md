@@ -272,12 +272,148 @@ projeto `yvdnsygxztmgmkaqrpxq` (OSI2026):
 **Os 4 bugs do relatório do Bruno (BUG-001 a BUG-004) estão corrigidos.**
 
 **Falta:**
-1. Testar em device: cadastrar questão avulsa no Banco de Questões, excluir
-   aluno, excluir instituição com/sem vínculo, e o fluxo IA→simulado→voltar
-   do BUG-002 — nenhuma dessas correções foi validada num device/emulador
-   real, só por leitura de código + queries de confirmação no banco.
 2. **O token de acesso do Supabase foi colado diretamente no chat várias
    vezes nesta sessão** — como ele já foi exposto na conversa, é fortemente
    recomendado revogá-lo e gerar um novo em Supabase → Account → Access
    Tokens agora que os fixes já foram aplicados.
 3. Novo build EAS para o Bruno validar a nova rodada de correções.
+
+---
+
+## Sessão 21/07/2026 — Teste em device + heurística 7 + bug pós-teste
+
+Usuário confirmou ter testado em device real (item 1 da lista acima, agora
+resolvido). No teste apareceu um bug novo: ao vincular uma questão já
+cadastrada a um simulado já criado (`admin/gerenciar.tsx`, modal "Vincular
+Questões" → `handleSalvarQuestoesNoSimulado`), a tela mostrava o erro
+literal `"object Object"` em vez de uma mensagem útil.
+
+**Causa raiz:** `src/utils/friendlyError.ts` só extraía `.message` quando
+`error instanceof Error`. Erros do Supabase (`PostgrestError`, `AuthError`,
+`StorageError`) são objetos simples, não instâncias de `Error` — caíam no
+`String(error ?? "")` genérico, que produz `"[object Object]"`. Esse bug
+afetava as 14 telas que usam `friendlyError`, não só essa tela.
+
+**Fix aplicado:** `friendlyError.ts` agora extrai `.message` de qualquer
+objeto que tenha essa propriedade como string, não só de `instanceof Error`.
+Isso corrige a exibição do erro em todo o app — mas se a causa raiz do erro
+real for uma policy de RLS faltando em `simulados` (mesma família de causa
+do BUG-003/004, ver seção acima: o app roda sempre como `anon`, e não há
+registro de uma policy de UPDATE para `simulados` ter sido criada), a ação
+ainda vai falhar — só que agora com uma mensagem legível
+("Você não tem permissão para realizar essa ação.") em vez de
+"object Object". **Não tive acesso ao banco nesta sessão para confirmar**;
+se o erro legível aparecer e for de permissão, a correção é análoga à do
+BUG-003 (`CREATE POLICY ... FOR UPDATE ON public.simulados TO anon,
+authenticated USING (true) WITH CHECK (true);` ou policy `FOR ALL`).
+
+**Heurística 7 (flexibilidade/eficiência de uso) — implementada:**
+- `admin/gerenciar.tsx`: busca por enunciado/matéria/dificuldade no modal
+  "Vincular Questões" (banco de questões pode crescer bastante), com atalho
+  "Selecionar N resultado(s)" para marcar/desmarcar todos os resultados
+  filtrados de uma vez.
+- `admin/usuarios.tsx`: busca por usuário/nome/instituição na lista de
+  alunos; modo de seleção múltipla (toque longo num card entra no modo,
+  toque simples alterna seleção) com exclusão em lote — antes só dava para
+  excluir um aluno por vez, abrindo o modal de edição de cada um.
+
+`npx tsc --noEmit` limpo (fora dos erros pré-existentes das Edge Functions
+Deno).
+
+**Falta:**
+1. Testar em device as mudanças desta sessão (busca, seleção em lote,
+   mensagem de erro corrigida no vínculo de questão a simulado).
+2. Revogar o token do Supabase exposto na sessão de 19/07 (ainda pendente).
+
+---
+
+## Sessão 21/07/2026 (continuação) — causa real do "object Object", bug hunt no app todo, RLS
+
+**A causa real do bug "object Object" não era RLS — era um erro de schema.**
+Com acesso ao banco nesta sessão (token fornecido pelo usuário via chat —
+novamente recomendo revogar), confirmei via Management API (somente leitura
+primeiro):
+- `questoes.id` é `uuid`.
+- `simulados.questoes_ids` era `int4[]` (array de inteiros).
+- `admin/gerenciar.tsx` mandava `questoesSelecionadas` (array de `id`s de
+  questão, ou seja, UUIDs) direto pro `update({ questoes_ids: ... })` —
+  Postgres rejeitava com erro de tipo (`invalid input syntax for type
+  integer`), e é esse erro bruto que virava "object Object" antes do fix do
+  `friendlyError`.
+- Todos os simulados existentes tinham `questoes_ids: []` — a feature nunca
+  tinha funcionado de ponta a ponta, então a migração foi 100% segura (sem
+  dado real pra perder/converter).
+
+**Fix aplicado (banco, via Management API, migração de schema):**
+```sql
+ALTER TABLE public.simulados ALTER COLUMN questoes_ids DROP DEFAULT;
+ALTER TABLE public.simulados ALTER COLUMN questoes_ids TYPE uuid[]
+  USING (CASE WHEN questoes_ids = ARRAY[]::integer[] OR questoes_ids IS NULL
+         THEN ARRAY[]::uuid[] ELSE questoes_ids::text[]::uuid[] END);
+ALTER TABLE public.simulados ALTER COLUMN questoes_ids SET DEFAULT ARRAY[]::uuid[];
+```
+Aplicado e confirmado (`udt_name` agora `_uuid`).
+
+**Fix aplicado (código):** `admin/gerenciar.tsx` — `questoesSelecionadas`
+(state) e `handleToggleSelect` trocados de `number[]`/`(id: number)` para
+`string[]`/`(id: string)`, batendo com o tipo real de `questoes.id`.
+
+**Auditoria de RLS (Management API, leitura de `pg_tables`/`pg_policies`)
+— nenhuma outra lacuna encontrada:**
+- `questoes`, `usuarios`: policies dos fixes de 19/07 confirmadas ainda no
+  ar (`Acesso total anonimo questoes`, `Permitir exclusao anonima de
+  usuarios`).
+- `simulados`: policy `Acesso total permissivo simulados` (`ALL`, `public`,
+  `true`/`true`) — já totalmente aberta, não era isso que bloqueava o
+  vínculo de questões.
+- `instituicoes`, `tentativas`, `verificacao_email`: RLS **desativado**
+  (sem restrição nenhuma) — funcionam por padrão.
+- `docentes`: policy `ALL` para `public` com `qual=true` — também aberta.
+- `notificacoes`: sem policy de UPDATE/DELETE pra `anon`, mas isso é
+  **intencional** — `home.tsx` já roteia a escrita pela Edge Function
+  `marcar-notificacoes-lidas` (service role) exatamente por causa disso,
+  tem até comentário no código explicando.
+
+**Bug hunt no app todo (fork dedicado, sem RLS/schema — só código) — fixes
+aplicados:**
+- `src/services/auth.ts` (`adicionarXP`, `salvarTentativa`,
+  `atualizarStreak`): as três engoliam erro só com `console.error`, nunca
+  relançavam — o catch em `simulado.tsx` (`nextQuestion`) que deveria
+  avisar "Não foi possível salvar seu XP/histórico" era código morto.
+  Agora relançam o erro do Supabase pro chamador.
+- `admin/gerenciar.tsx`: `handleDeletarQuestao` e `handleDeletarSimulado`
+  não checavam `error` nem linhas afetadas no `.delete()` (mesma classe do
+  BUG-004 já corrigido em `usuarios.tsx`/`instituicoes.tsx`) — agora
+  checam, no mesmo padrão. `handleSalvarQuestoesNoSimulado` checava
+  `error` mas não linhas afetadas — agora usa `.select()` + checagem de
+  tamanho, então um UPDATE bloqueado silenciosamente (0 linhas afetadas)
+  não mostra mais "Sucesso!".
+- `app/_layout.tsx`: guard de autenticação (`estaNaAreaRestrita`) não
+  incluía as rotas `/ajuda` e `/webview` (destinos legítimos autenticados,
+  linkados de `perfil.tsx` e `escolher.tsx`) — se a sessão restaurasse com
+  a primeira navegação caindo direto numa dessas rotas, o guard chutava o
+  usuário de volta pra home/admin. Adicionadas ao allow-list.
+- `app/(tabs)/perfil.tsx`: `handlePickImage` não checava o `error` do
+  `update()` de `avatar_url` — se falhasse (RLS, rede), o app mostrava
+  "Sucesso!" e o avatar revertia no próximo login. Agora checa e lança.
+- `app/tutor/gerador.tsx`: janela de corrida entre o toque no botão e
+  `setLoading(true)` (dois `await`s antes) permitia toque duplo rápido
+  disparar duas gerações concorrentes e furar o cooldown de 1/hora. Guard
+  síncrono via `useRef` (`emGeracaoRef`) adicionado antes de qualquer
+  `await`.
+- **Não alterado, só sinalizado:** `src/services/auth.ts` (`logarAluno`)
+  tem fallback de comparação de senha em texto puro, com comentário
+  explícito no código dizendo que é pra contas antigas de teste — não mexi
+  porque parece intencional, mas fica registrado caso vire escopo de uma
+  limpeza de segurança futura.
+
+`npx tsc --noEmit` limpo (fora dos erros pré-existentes das Edge Functions
+Deno) depois de todos os fixes desta seção.
+
+**Falta:**
+1. Testar em device: vincular questão a simulado (agora deve funcionar de
+   ponta a ponta pela primeira vez), excluir questão/simulado no
+   `gerenciar.tsx`, upload de avatar, geração de simulado por IA (double
+   tap), navegação vinda de `/ajuda` e `/webview` após restaurar sessão.
+2. Revogar o token do Supabase colado no chat nesta sessão.
+3. Novo build EAS.

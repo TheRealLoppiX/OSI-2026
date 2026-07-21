@@ -33,6 +33,10 @@ export default function ListaUsuarios() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [instituicoes, setInstituicoes] = useState<any[]>([]);
+  const [busca, setBusca] = useState("");
+  const [modoSelecao, setModoSelecao] = useState(false);
+  const [selecionados, setSelecionados] = useState<string[]>([]);
+  const [excluindoLote, setExcluindoLote] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -45,6 +49,64 @@ export default function ListaUsuarios() {
     fetchUsers();
     supabase.from("instituicoes").select("nome, sigla").order("nome").then(({ data }) => setInstituicoes(data || []));
   }, []);
+
+  const usuariosFiltrados = busca.trim()
+    ? users.filter((u) => {
+        const termo = busca.trim().toLowerCase();
+        return (
+          u.usuario?.toLowerCase().includes(termo) ||
+          u.nome?.toLowerCase().includes(termo) ||
+          u.instituicao?.toLowerCase().includes(termo)
+        );
+      })
+    : users;
+
+  const handleToggleSelecionado = (id: string) => {
+    setSelecionados((prev) => (prev.includes(id) ? prev.filter((sId) => sId !== id) : [...prev, id]));
+  };
+
+  const handleLongPressCard = (user: any) => {
+    setModoSelecao(true);
+    setSelecionados([user.id]);
+  };
+
+  const handleCancelarSelecao = () => {
+    setModoSelecao(false);
+    setSelecionados([]);
+  };
+
+  const handleExcluirSelecionados = () => {
+    appAlert.alert(
+      "Excluir alunos",
+      `Remover permanentemente ${selecionados.length} aluno(s) do sistema? Esta ação não pode ser desfeita.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            setExcluindoLote(true);
+            const { data, error } = await supabase.from("usuarios").delete().in("id", selecionados).select();
+            setExcluindoLote(false);
+            if (error) {
+              return appAlert.alert("Erro", friendlyError(error, "Falha ao excluir os alunos selecionados."));
+            }
+            const removidos = data?.length || 0;
+            if (removidos < selecionados.length) {
+              appAlert.alert(
+                "Exclusão parcial",
+                `${removidos} de ${selecionados.length} aluno(s) foram removidos. Verifique as permissões de exclusão no banco de dados.`
+              );
+            } else {
+              appAlert.alert("Sucesso", `${removidos} aluno(s) removido(s).`);
+            }
+            handleCancelarSelecao();
+            fetchUsers();
+          },
+        },
+      ]
+    );
+  };
 
   const openEdit = (user: any) => {
     setSelectedUser(user);
@@ -105,41 +167,96 @@ export default function ListaUsuarios() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { backgroundColor: colors.primary }]}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Monitorar Alunos</Text>
-        <TouchableOpacity onPress={fetchUsers} accessibilityRole="button" accessibilityLabel="Atualizar lista">
-          <Ionicons name="refresh" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      {modoSelecao ? (
+        <View style={[styles.header, { backgroundColor: colors.primary }]}>
+          <TouchableOpacity onPress={handleCancelarSelecao} accessibilityRole="button" accessibilityLabel="Cancelar seleção">
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.title}>{selecionados.length} selecionado(s)</Text>
+          <TouchableOpacity
+            onPress={handleExcluirSelecionados}
+            disabled={selecionados.length === 0 || excluindoLote}
+            accessibilityRole="button"
+            accessibilityLabel="Excluir selecionados"
+          >
+            {excluindoLote ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="trash-outline" size={24} color="#fff" />}
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={[styles.header, { backgroundColor: colors.primary }]}>
+          <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Monitorar Alunos</Text>
+          <TouchableOpacity onPress={fetchUsers} accessibilityRole="button" accessibilityLabel="Atualizar lista">
+            <Ionicons name="refresh" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!loading && users.length > 0 && (
+        <View style={[styles.buscaRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <Ionicons name="search" size={16} color={colors.textLight} />
+          <TextInput
+            style={[styles.buscaInput, { color: colors.text }]}
+            placeholder="Buscar por usuário, nome ou instituição..."
+            placeholderTextColor={colors.textLight}
+            value={busca}
+            onChangeText={setBusca}
+          />
+          {busca.length > 0 && (
+            <TouchableOpacity onPress={() => setBusca("")} accessibilityRole="button" accessibilityLabel="Limpar busca">
+              <Ionicons name="close-circle" size={16} color={colors.textLight} />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {loading ? (
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
+      ) : usuariosFiltrados.length === 0 ? (
+        <View style={{ alignItems: "center", marginTop: 50 }}>
+          <Ionicons name="search-outline" size={40} color="#CBD5E1" />
+          <Text style={{ color: colors.textLight, marginTop: 10 }}>Nenhum aluno encontrado.</Text>
+        </View>
       ) : (
         <FlatList
-          data={users}
+          data={usuariosFiltrados}
           keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={{ padding: 20 }}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.userCard, { backgroundColor: colors.card }]}
-              onPress={() => openEdit(item)}
-            >
-              <Image
-                source={{ uri: item.avatar_url || `https://api.dicebear.com/7.x/avataaars/png?seed=${item.usuario}` }}
-                style={[styles.avatar, { borderColor: colors.border }]}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.userName, { color: colors.text }]}>{item.usuario}</Text>
-                <Text style={[styles.userSchool, { color: colors.textLight }]}>{item.instituicao || "Sem instituição"}</Text>
-              </View>
-              <View style={[styles.editIcon, { backgroundColor: colors.primary }]}>
-                <Ionicons name="pencil" size={16} color="#fff" />
-              </View>
-            </TouchableOpacity>
-          )}
+          contentContainerStyle={{ padding: 20, paddingTop: 12 }}
+          renderItem={({ item }) => {
+            const isSelected = selecionados.includes(item.id);
+            return (
+              <TouchableOpacity
+                style={[
+                  styles.userCard,
+                  { backgroundColor: colors.card },
+                  isSelected && { borderWidth: 2, borderColor: colors.primary },
+                ]}
+                onPress={() => (modoSelecao ? handleToggleSelecionado(item.id) : openEdit(item))}
+                onLongPress={() => (modoSelecao ? undefined : handleLongPressCard(item))}
+                accessibilityRole="button"
+                accessibilityLabel={modoSelecao ? (isSelected ? "Remover seleção do aluno" : "Selecionar aluno") : "Editar aluno"}
+              >
+                {modoSelecao && (
+                  <Ionicons name={isSelected ? "checkbox" : "square-outline"} size={22} color={isSelected ? colors.primary : "#94A3B8"} />
+                )}
+                <Image
+                  source={{ uri: item.avatar_url || `https://api.dicebear.com/7.x/avataaars/png?seed=${item.usuario}` }}
+                  style={[styles.avatar, { borderColor: colors.border }]}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.userName, { color: colors.text }]}>{item.usuario}</Text>
+                  <Text style={[styles.userSchool, { color: colors.textLight }]}>{item.instituicao || "Sem instituição"}</Text>
+                </View>
+                {!modoSelecao && (
+                  <View style={[styles.editIcon, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="pencil" size={16} color="#fff" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
 
@@ -287,6 +404,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   title: { fontSize: 20, fontWeight: "bold", color: "#fff" },
+  buscaRow: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginHorizontal: 20, marginTop: 14 },
+  buscaInput: { flex: 1, fontSize: 14, padding: 0 },
   userCard: {
     padding: 16,
     borderRadius: 20,

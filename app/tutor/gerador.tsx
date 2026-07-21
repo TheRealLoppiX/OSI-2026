@@ -26,6 +26,7 @@ export default function GeradorSimulado() {
   const [loading, setLoading] = useState(false);
   const [cooldownMin, setCooldownMin] = useState(0);
   const isMountedRef = useRef(true);
+  const emGeracaoRef = useRef(false);
 
   useEffect(() => {
     verificarCooldown();
@@ -51,6 +52,12 @@ export default function GeradorSimulado() {
 
   const gerarSimuladoIA = async () => {
     if (!tema.trim()) return appAlert.alert("Ops", "Qual o tema?");
+    // Guard síncrono (ref, não state) contra duplo toque rápido: o `loading`
+    // via useState só desabilita o botão depois do primeiro re-render, o que
+    // deixa uma janela para dois toques dispararem duas gerações e furarem
+    // o cooldown de 1/hora.
+    if (emGeracaoRef.current) return;
+    emGeracaoRef.current = true;
 
     const user = await authService.getUser();
     const key = `@OSI_ai_gen_${user?.id || "guest"}`;
@@ -60,6 +67,7 @@ export default function GeradorSimulado() {
       const elapsed = Date.now() - Number(lastStr);
       if (elapsed < UMA_HORA_MS) {
         const restante = Math.ceil((UMA_HORA_MS - elapsed) / 60000);
+        emGeracaoRef.current = false;
         return appAlert.alert(
           "Aguarde um pouco",
           `Para não sobrecarregar OSIA, cada usuário pode gerar 1 simulado por hora.\n\nPróximo disponível em ${restante} min.`
@@ -90,6 +98,7 @@ export default function GeradorSimulado() {
         );
       }
     } finally {
+      emGeracaoRef.current = false;
       if (isMountedRef.current) setLoading(false);
     }
   };

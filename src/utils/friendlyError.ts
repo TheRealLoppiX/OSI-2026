@@ -8,8 +8,19 @@ const PADROES: { teste: RegExp; mensagem: string }[] = [
   { teste: /timeout/i, mensagem: "A operação demorou demais para responder. Tente novamente." },
 ];
 
+function extrairMensagem(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  // Erros do Supabase (PostgrestError, AuthError, StorageError) são objetos
+  // simples com .message, não instâncias de Error — sem isso, caem no
+  // String(error) genérico e viram "[object Object]" pro usuário.
+  if (error && typeof error === "object" && "message" in error && typeof (error as any).message === "string") {
+    return (error as any).message;
+  }
+  return String(error ?? "");
+}
+
 export function friendlyError(error: unknown, fallback: string): string {
-  const bruto = error instanceof Error ? error.message : String(error ?? "");
+  const bruto = extrairMensagem(error);
   const encontrado = PADROES.find((p) => p.teste.test(bruto));
   return encontrado ? encontrado.mensagem : bruto || fallback;
 }
