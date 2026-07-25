@@ -16,22 +16,37 @@ serve(async (req: Request) => {
     });
 
   try {
+    const { usuario_id } = await req.json();
+    if (!usuario_id) return json({ error: "usuario_id é obrigatório." }, 400);
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // A tabela notificacoes é broadcast (sem dono por usuário), então o
-    // flag "lida" é global. RLS bloqueia UPDATE pela anon key, por isso
-    // essa escrita precisa passar pela service role aqui.
-    const { error } = await supabase
+    // Leitura é por usuário (tabela notificacao_leituras), não mais um flag
+    // global em notificacoes — antes, o primeiro aluno a abrir "Avisos"
+    // marcava a notificação como lida para todo mundo. RLS bloqueia escrita
+    // direta pela anon key, por isso passa pela service role aqui.
+    const { data: notificacoes, error: errNotificacoes } = await supabase
       .from("notificacoes")
-      .update({ lida: true })
-      .eq("lida", false);
+      .select("id");
 
-    if (error) {
-      console.error(error);
+    if (errNotificacoes) {
+      console.error(errNotificacoes);
       return json({ error: "Erro interno. Tente novamente mais tarde." }, 500);
+    }
+
+    if (notificacoes && notificacoes.length > 0) {
+      const linhas = notificacoes.map((n: any) => ({ usuario_id, notificacao_id: n.id }));
+      const { error } = await supabase
+        .from("notificacao_leituras")
+        .upsert(linhas, { onConflict: "usuario_id,notificacao_id", ignoreDuplicates: true });
+
+      if (error) {
+        console.error(error);
+        return json({ error: "Erro interno. Tente novamente mais tarde." }, 500);
+      }
     }
 
     return json({ ok: true });

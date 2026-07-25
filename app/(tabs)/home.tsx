@@ -33,33 +33,57 @@ export default function HomeAluno() {
   const [osiaTip, setOsiaTip] = useState("Carregando dica de OSIA...");
   const [modalVisible, setModalVisible] = useState(false);
   const [notificacoes, setNotificacoes] = useState<any[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const getUserData = async () => {
     const user = await authService.getUser();
     if (user) {
       const primeiroNome = (user.nome || user.usuario || "Estudante").trim().split(" ")[0];
       setUserName(primeiroNome);
+      setUserId(user.id);
+      return user.id as string;
     } else {
       router.replace("/");
+      return null;
     }
   };
 
-  const getUnreadNotifications = async () => {
-    const { count, error } = await supabase
-      .from("notificacoes")
-      .select("*", { count: "exact", head: true })
-      .eq("lida", false);
+  // Leitura de notificação é por usuário (notificacao_leituras), não mais um
+  // flag global em notificacoes — antes, o primeiro aluno a abrir "Avisos"
+  // marcava a notificação como lida para todo mundo.
+  const getUnreadNotifications = async (uid: string | null) => {
+    if (!uid) return;
+    const { data: todas, error: errTodas } = await supabase.from("notificacoes").select("id");
+    if (errTodas || !todas) return;
 
-    if (!error) setUnreadCount(count || 0);
+    const { data: lidas, error: errLidas } = await supabase
+      .from("notificacao_leituras")
+      .select("notificacao_id")
+      .eq("usuario_id", uid);
+    if (errLidas) return;
+
+    const lidasSet = new Set((lidas || []).map((l: any) => l.notificacao_id));
+    setUnreadCount(todas.filter((n: any) => !lidasSet.has(n.id)).length);
   };
 
-  const fetchMensagens = async () => {
+  const fetchMensagens = async (uid: string | null) => {
     const { data, error } = await supabase
       .from("notificacoes")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data) setNotificacoes(data);
+    if (error || !data) return;
+
+    let lidasSet = new Set<string>();
+    if (uid) {
+      const { data: lidas } = await supabase
+        .from("notificacao_leituras")
+        .select("notificacao_id")
+        .eq("usuario_id", uid);
+      lidasSet = new Set((lidas || []).map((l: any) => l.notificacao_id));
+    }
+
+    setNotificacoes(data.map((n: any) => ({ ...n, lida: lidasSet.has(n.id) })));
   };
 
   const loadOsiaTip = async () => {
@@ -85,8 +109,12 @@ export default function HomeAluno() {
   };
 
   useEffect(() => {
-    getUserData();
-    getUnreadNotifications();
+    let uidAtual: string | null = null;
+
+    getUserData().then((uid) => {
+      uidAtual = uid;
+      getUnreadNotifications(uid);
+    });
     loadNews();
     loadOsiaTip();
 
@@ -95,7 +123,7 @@ export default function HomeAluno() {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notificacoes" },
-        () => getUnreadNotifications(),
+        () => getUnreadNotifications(uidAtual),
       )
       .subscribe();
 
@@ -106,19 +134,24 @@ export default function HomeAluno() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    getUnreadNotifications();
+    getUnreadNotifications(userId);
     loadNews();
     loadOsiaTip();
   };
 
   const handleOpenInbox = async () => {
-    fetchMensagens();
+    fetchMensagens(userId);
     setModalVisible(true);
-    if (unreadCount > 0) {
-      // RLS bloqueia UPDATE em notificacoes pela anon key, então a escrita
-      // passa pela Edge Function (service role) em vez do client direto.
-      const { error } = await supabase.functions.invoke("marcar-notificacoes-lidas");
-      if (!error) setUnreadCount(0);
+    if (unreadCount > 0 && userId) {
+      // RLS bloqueia escrita em notificacao_leituras pela anon key, então a
+      // escrita passa pela Edge Function (service role) em vez do client direto.
+      const { error } = await supabase.functions.invoke("marcar-notificacoes-lidas", {
+        body: { usuario_id: userId },
+      });
+      if (!error) {
+        setUnreadCount(0);
+        setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: true })));
+      }
     }
   };
 
@@ -174,7 +207,11 @@ export default function HomeAluno() {
                 notificacoes.map((item) => (
                   <View key={item.id} style={[styles.notifItem, { borderBottomColor: colors.border }]}>
                     <View style={[styles.notifIconArea, { backgroundColor: colors.bg }]}>
-                      <Ionicons name="mail-unread" size={20} color={colors.primary} />
+                      <Ionicons
+                        name={item.lida ? "mail-open" : "mail-unread"}
+                        size={20}
+                        color={item.lida ? colors.textLight : colors.primary}
+                      />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.notifTitle, { color: colors.text }]}>{item.titulo}</Text>

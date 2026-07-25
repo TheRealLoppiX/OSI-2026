@@ -12,26 +12,35 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ""
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ""
 
-    // Só docentes cadastrados podem disparar push para todos os alunos — sem
-    // isso, qualquer pessoa com a anon key (pública) poderia fazer spam/phishing em massa.
-    const docenteId = req.headers.get('x-docente-id')
-    if (!docenteId) {
-      return new Response(JSON.stringify({ error: "Não autorizado." }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
-    }
+    // Dois chamadores legítimos: (1) o Database Webhook "enviar_notificacao_push"
+    // (trigger AFTER INSERT em public.notificacoes), que manda a service role key
+    // no Authorization — esse é confiável por definição, a key nunca sai do banco;
+    // (2) uma futura chamada direta do app admin, autenticada por x-docente-id.
+    // Sem uma das duas, qualquer pessoa com a anon key (pública) poderia fazer
+    // spam/phishing em massa para todos os alunos.
+    const authHeader = req.headers.get('authorization') ?? ''
+    const chamadaDoWebhook = !!supabaseKey && authHeader === `Bearer ${supabaseKey}`
 
-    const resDocente = await fetch(
-      `${supabaseUrl}/rest/v1/docentes?select=id&id=eq.${encodeURIComponent(docenteId)}`,
-      { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
-    )
-    const docentes = await resDocente.json()
-    if (!Array.isArray(docentes) || docentes.length === 0) {
-      return new Response(JSON.stringify({ error: "Não autorizado." }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401,
-      })
+    if (!chamadaDoWebhook) {
+      const docenteId = req.headers.get('x-docente-id')
+      if (!docenteId) {
+        return new Response(JSON.stringify({ error: "Não autorizado." }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        })
+      }
+
+      const resDocente = await fetch(
+        `${supabaseUrl}/rest/v1/docentes?select=id&id=eq.${encodeURIComponent(docenteId)}`,
+        { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } }
+      )
+      const docentes = await resDocente.json()
+      if (!Array.isArray(docentes) || docentes.length === 0) {
+        return new Response(JSON.stringify({ error: "Não autorizado." }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401,
+        })
+      }
     }
 
     const { titulo, mensagem } = await req.json()

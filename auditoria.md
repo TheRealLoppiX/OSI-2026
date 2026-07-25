@@ -229,15 +229,47 @@ no servidor para todas as 6 functions).
 
 ---
 
-## Plano de ação — o que falta (fora do alcance desta sessão)
+## Atualização — itens pendentes resolvidos numa segunda rodada (25/07/2026)
 
-1. **Deploy do `groq-proxy`** (achado ALTA #6) — tirar a chave da Groq do
-   bundle do cliente. Maior item pendente de segurança.
-2. **Migração `notificacao_leituras`** (achado MÉDIA) — leitura de
-   notificação por usuário em vez de global.
-3. **Rate limit em `get-news`** — depende de entender se algo externo
-   (cron) já chama essa function, para não quebrar o agendamento.
-4. Testar em device as mudanças desta sessão antes do build ir para o
-   Bruno validar (mesmo cuidado dos handoffs anteriores).
-5. Revogar o token do Supabase que ficou exposto em conversas anteriores
-   (item recorrente do `handoff.md`, ainda pendente).
+O usuário forneceu um Personal Access Token do Supabase e autorizou completar
+os itens que dependiam de banco/deploy. O que foi feito:
+
+1. **`groq-proxy` deployado e conectado** — secret `GROQ_API_KEY` configurada,
+   function no ar, `aiService.ts` já chama o proxy. Achado ALTA #6 resolvido
+   de ponta a ponta.
+2. **Migração `notificacao_leituras` aplicada** — tabela criada (com RLS,
+   `SELECT` aberto pra `anon`/`authenticated`, igual ao resto do app),
+   `marcar-notificacoes-lidas` reescrita pra gravar leitura por usuário
+   (`usuario_id` vem no body da chamada), `home.tsx` atualizado pra calcular
+   não-lidas e listar avisos com base nessa tabela em vez do flag global
+   `notificacoes.lida` (que continua existindo na tabela, só não é mais
+   usado pra essa lógica).
+3. **`get-news` protegida** — descobri, consultando `cron.job` no banco, que
+   existe um agendamento real (`pg_cron`, 4x/dia) chamando essa function.
+   Configurei uma secret `CRON_SECRET`, atualizei a function pra exigi-la
+   num header, e **atualizei o próprio cron job** (`cron.alter_job`) pra
+   mandar esse header — sem isso o agendamento ia quebrar.
+4. **Regressão encontrada e corrigida**: a mesma investigação no banco achou
+   um Database Webhook real (`enviar_notificacao_push`, trigger `AFTER INSERT
+   ON notificacoes`) que chama `send-push-notification` usando a service role
+   key — é assim que o disparo de notificação por `admin/notificar.tsx`
+   realmente funciona (o client nunca chama a function direto, só insere na
+   tabela). A correção de autorização que apliquei na primeira rodada
+   (exigir `x-docente-id`) não previa esse caminho e **quebrou esse webhook em
+   produção por um tempo**. Corrigido: a function agora aceita a chamada se
+   o `Authorization` bater com a service role key (o webhook) OU se vier um
+   `x-docente-id` válido (uso direto futuro) — sem isso, ninguém mais
+   consegue chamar a function.
+
+Todas as functions tocadas nesta rodada (`groq-proxy`, `get-news`,
+`marcar-notificacoes-lidas`, `send-push-notification`) já foram redeployadas.
+
+## Plano de ação — o que ainda falta
+
+1. Testar em device as mudanças desta sessão (duas rodadas) antes do build
+   ir para o Bruno validar (mesmo cuidado dos handoffs anteriores) —
+   especialmente notificações (badge, marcar como lida, push real) e o
+   tutor de IA (agora passando pelo proxy).
+2. Revogar o token do Supabase colado nesta sessão em
+   Supabase → Account → Access Tokens — não existe endpoint de
+   autorrevogação via API/CLI, só dá pra fazer pelo dashboard.
