@@ -23,10 +23,19 @@ código).
 - **~12 achados de severidade BAIXA** — erros de leitura não logados, cosmética
   de tema, código morto.
 - **Todos os itens marcados [CÓDIGO] foram corrigidos e aplicados nesta
-  sessão.** Itens marcados **[REQUER DEPLOY/BANCO]** dependem de uma ação que
-  eu não tinha como executar nesta sessão (falta de login no `supabase` CLI —
-  `npx supabase projects list` retornou `Unauthorized`) — o código já está
-  pronto, só falta rodar o deploy/SQL manualmente ou me dar acesso.
+  sessão**, e todas as Edge Functions tocadas (`verificar-otp`, `enviar-otp`,
+  `importar-planilha`, `send-push-notification`, `marcar-notificacoes-lidas`,
+  `get-news`, `groq-proxy`) já foram deployadas em produção (projeto
+  `yvdnsygxztmgmkaqrpxq`), depois que o usuário forneceu um Personal Access
+  Token do Supabase nesta sessão (login automático via navegador não
+  funciona neste ambiente não-interativo). A secret `GROQ_API_KEY` também já
+  está configurada — o achado ALTA #6 (chave da Groq exposta) foi resolvido
+  de ponta a ponta, não só preparado.
+- Item que ainda depende de banco (**[REQUER BANCO]**, não aplicado): a
+  migração `notificacao_leituras` (achado MÉDIA, leitura de notificação por
+  usuário) — não rodei porque envolve criar uma tabela nova e mudar o fluxo
+  de leitura de notificações, e preferi não fazer isso sem confirmar o
+  impacto com mais calma; o SQL já está pronto mais abaixo neste documento.
 
 ---
 
@@ -74,25 +83,19 @@ síncrono no início de `handleAnswer` (`if (showFeedback) return`) e trava por
 **Fix:** chamada adicionada em `AuthContext` logo após restaurar/criar sessão,
 com try/catch (falha ao registrar push não deve travar o login).
 
-### 6. Chave da Groq embutida no bundle do cliente [REQUER DEPLOY — não aplicado]
-`EXPO_PUBLIC_GROQ_API_KEY` fica literal no JS bundle do app — extraível via
+### 6. Chave da Groq embutida no bundle do cliente [CÓDIGO + DEPLOY — corrigido]
+`EXPO_PUBLIC_GROQ_API_KEY` ficava literal no JS bundle do app — extraível via
 engenharia reversa do APK, permitindo uso da chave (billing da conta) fora do
 app, sem cooldown nem limite de questões.
-**Preparado, não ativado:** criei `supabase/functions/groq-proxy/index.ts`,
-que faz a chamada à Groq no servidor usando uma secret `GROQ_API_KEY` (nunca
-exposta ao cliente). **Não troquei `aiService.ts` para usar essa function**
-porque isso quebraria o tutor de IA até o deploy acontecer, e eu não tenho
-como rodar `supabase functions deploy`/`supabase secrets set` nesta sessão
-(CLI sem login). Passos para ativar, quando puder:
-```
-supabase login
-supabase secrets set GROQ_API_KEY=<chave-groq> --project-ref yvdnsygxztmgmkaqrpxq
-supabase functions deploy groq-proxy
-```
-Depois disso, trocar `chamarGroq` em `src/services/aiService.ts` para chamar
+**Fix aplicado e já em produção:** `supabase/functions/groq-proxy/index.ts`
+faz a chamada à Groq no servidor usando a secret `GROQ_API_KEY` (configurada
+via `supabase secrets set`, nunca exposta ao cliente); `chamarGroq` em
+`src/services/aiService.ts` agora chama
 `supabase.functions.invoke("groq-proxy", { body: { mensagens, maxTokens, jsonMode } })`
-em vez de `fetch` direto — o arquivo da function já devolve o mesmo formato
-de resposta da API da Groq, então a troca é mínima.
+em vez de `fetch` direto à Groq. Secret configurada e function deployada no
+projeto `yvdnsygxztmgmkaqrpxq` nesta sessão (usuário forneceu um Personal
+Access Token do Supabase). O app não embute mais nenhuma chave paga da Groq
+a partir do próximo build.
 
 ### 7. `cadastrar-questao.tsx`: `salvarQuestao` não confere linhas afetadas no UPDATE [CÓDIGO — corrigido]
 Mesmo padrão de "sucesso falso" já corrigido em outros arquivos, mas

@@ -1,29 +1,20 @@
-const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
-const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+import { supabase } from "./supabase";
 
 // Função base reutilizada por todos os métodos do serviço.
 // O nome histórico "askGemini" veio da versão anterior que usava Google Gemini;
 // hoje a inferência roda no Groq (llama-3.3-70b), mas o contrato da função é idêntico.
+//
+// A chamada à Groq roda no servidor (Edge Function "groq-proxy"), não mais
+// direto do cliente — a chave da API nunca fica embutida no bundle do app
+// (antes era EXPO_PUBLIC_GROQ_API_KEY, extraível via engenharia reversa do APK).
 async function chamarGroq(mensagens: { role: string; content: string }[], maxTokens: number, jsonMode = false): Promise<string> {
-  if (!GROQ_API_KEY) throw new Error("Chave Groq não configurada.");
-
-  const body: any = {
-    model: "llama-3.3-70b-versatile",
-    messages: mensagens,
-    max_tokens: maxTokens,
-    temperature: jsonMode ? 0.2 : 0.7,
-  };
-  if (jsonMode) body.response_format = { type: "json_object" };
-
-  const response = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
-    body: JSON.stringify(body),
+  const { data, error } = await supabase.functions.invoke("groq-proxy", {
+    body: { mensagens, maxTokens, jsonMode },
   });
 
-  const data = await response.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.choices[0].message.content.trim();
+  if (error) throw new Error(data?.error || error.message);
+  if (!data?.content) throw new Error("Resposta vazia da IA.");
+  return data.content;
 }
 
 const SYSTEM_OSIA = `Você é OSIA, a Inteligência Artificial oficial da OSI (Olimpíada Salgueirense de Informática), sediada em Salgueiro-PE.
