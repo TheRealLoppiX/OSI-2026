@@ -12,6 +12,7 @@ export const newsService = {
       if (error) throw error;
       return data;
     } catch (error) {
+      console.error("Erro ao buscar notícias:", error);
       return [];
     }
   }

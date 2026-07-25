@@ -52,6 +52,28 @@ serve(async (req: Request) => {
     });
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+    if (!supabaseUrl || !serviceKey) {
+      return json({ error: "Variáveis de ambiente do Supabase não configuradas." }, 500);
+    }
+
+    const supabase = createClient(supabaseUrl, serviceKey);
+
+    // Só docentes cadastrados podem importar questões em massa — sem isso,
+    // qualquer pessoa com a anon key (pública) poderia escrever no banco de questões.
+    const docenteId = req.headers.get("x-docente-id");
+    if (!docenteId) return json({ error: "Não autorizado." }, 401);
+
+    const { data: docente } = await supabase
+      .from("docentes")
+      .select("id")
+      .eq("id", docenteId)
+      .maybeSingle();
+
+    if (!docente) return json({ error: "Não autorizado." }, 401);
+
     const { url, base64, apenasPreview } = await req.json();
 
     let questoes: object[] = [];
@@ -98,15 +120,6 @@ serve(async (req: Request) => {
       return json({ error: "Nenhuma questão encontrada. Verifique se a planilha segue o modelo." }, 400);
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-    if (!supabaseUrl || !serviceKey) {
-      return json({ error: "Variáveis de ambiente do Supabase não configuradas." }, 500);
-    }
-
-    const supabase = createClient(supabaseUrl, serviceKey);
-
     // Verifica duplicatas pelo enunciado para preview e importação
     const enunciados = questoes.map((q: any) => q.enunciado);
     const { data: existentes } = await supabase
@@ -147,6 +160,7 @@ serve(async (req: Request) => {
     return json({ importadas: data?.length ?? questoesNovas.length, puladas, total: questoesComFlag.length });
 
   } catch (err: any) {
-    return json({ error: err.message }, 500);
+    console.error(err);
+    return json({ error: "Erro interno. Tente novamente mais tarde." }, 500);
   }
 });

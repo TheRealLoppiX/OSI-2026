@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useTheme } from "../../src/context/ThemeContext";
+import { useAuth } from "../../src/context/AuthContext";
 import { supabase } from "../../src/services/supabase";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
@@ -38,7 +39,11 @@ const CAMPOS_PLANILHA = [
 ];
 
 function csvEscape(valor: any): string {
-  const texto = valor === null || valor === undefined ? "" : String(valor);
+  let texto = valor === null || valor === undefined ? "" : String(valor);
+  // Neutraliza injeção de fórmula (CSV/formula injection) ao abrir no Excel/Sheets.
+  if (/^[=+\-@]/.test(texto)) {
+    texto = `'${texto}`;
+  }
   if (/[",\n]/.test(texto)) {
     return `"${texto.replace(/"/g, '""')}"`;
   }
@@ -47,6 +52,7 @@ function csvEscape(valor: any): string {
 
 export default function ImportarQuestoes() {
   const { colors } = useTheme();
+  const { usuario } = useAuth();
   const [modo, setModo] = useState<Modo>("url");
   const [url, setUrl] = useState("");
   const [base64, setBase64] = useState<string | null>(null);
@@ -133,8 +139,10 @@ export default function ImportarQuestoes() {
   };
 
   const chamarPreview = async (body: object) => {
+    if (!usuario?.id) throw new Error("Sessão inválida, faça login novamente.");
     const { data, error } = await supabase.functions.invoke("importar-planilha", {
       body: { ...body, apenasPreview: true },
+      headers: { "x-docente-id": usuario.id },
     });
     if (error) throw new Error(error.message);
     if (data?.error) throw new Error(data.error);
@@ -153,6 +161,7 @@ export default function ImportarQuestoes() {
           onPress: async () => {
             setImportando(true);
             try {
+              if (!usuario?.id) throw new Error("Sessão inválida, faça login novamente.");
               const body =
                 modo === "xlsx" && base64
                   ? { base64, apenasPreview: false }
@@ -160,7 +169,7 @@ export default function ImportarQuestoes() {
 
               const { data, error } = await supabase.functions.invoke(
                 "importar-planilha",
-                { body },
+                { body, headers: { "x-docente-id": usuario.id } },
               );
               if (error) throw new Error(error.message);
               if (data?.error) throw new Error(data.error);

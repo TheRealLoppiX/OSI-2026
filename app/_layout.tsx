@@ -77,6 +77,13 @@ function RootLayoutInner() {
       rotaRaiz === "ajuda" ||
       rotaRaiz === "webview";
 
+    if (estaNaAreaRestrita) {
+      // Usuário chegou numa rota restrita (navegação normal ou redirecionamento
+      // já concluído) — libera a checagem para disparar de novo se ele cair
+      // numa rota pública outra vez estando logado (ex.: deep link).
+      jaRedirecionouGlobal = false;
+    }
+
     if (usuarioLogado && !estaNaAreaRestrita && !jaRedirecionouGlobal) {
       jaRedirecionouGlobal = true;
       startNavigation();

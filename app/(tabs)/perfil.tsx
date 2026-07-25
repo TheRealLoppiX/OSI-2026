@@ -118,8 +118,15 @@ export default function PerfilAluno() {
       const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(fileName);
       const updatedUser = { ...userData, avatar_url: publicUrl };
 
-      const { error: updateError } = await supabase.from("usuarios").update({ avatar_url: publicUrl }).eq("id", userId);
+      const { data: updateData, error: updateError } = await supabase
+        .from("usuarios")
+        .update({ avatar_url: publicUrl })
+        .eq("id", userId)
+        .select();
       if (updateError) throw updateError;
+      if (!updateData || updateData.length === 0) {
+        throw new Error("Não foi possível salvar a foto: nenhuma alteração foi persistida.");
+      }
       setUserData(updatedUser);
       await authService.saveUser(updatedUser);
 

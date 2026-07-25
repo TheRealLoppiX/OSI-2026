@@ -40,6 +40,7 @@ export default function GeradorSimulado() {
     if (!user?.id) return;
     const key = `@OSI_ai_gen_${user.id}`;
     const lastStr = await AsyncStorage.getItem(key);
+    if (!isMountedRef.current) return;
     if (lastStr) {
       const elapsed = Date.now() - Number(lastStr);
       if (elapsed < UMA_HORA_MS) {

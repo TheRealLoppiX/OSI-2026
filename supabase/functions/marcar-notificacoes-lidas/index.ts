@@ -29,10 +29,14 @@ serve(async (req: Request) => {
       .update({ lida: true })
       .eq("lida", false);
 
-    if (error) return json({ error: error.message }, 500);
+    if (error) {
+      console.error(error);
+      return json({ error: "Erro interno. Tente novamente mais tarde." }, 500);
+    }
 
     return json({ ok: true });
   } catch (err: any) {
-    return json({ error: err.message }, 500);
+    console.error(err);
+    return json({ error: "Erro interno. Tente novamente mais tarde." }, 500);
   }
 });

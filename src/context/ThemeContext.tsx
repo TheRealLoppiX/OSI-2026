@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { Appearance } from "react-native";
 
 const THEME_KEY = "@osi_theme";
 
@@ -46,11 +47,12 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(() => Appearance.getColorScheme() === "dark");
 
   useEffect(() => {
     AsyncStorage.getItem(THEME_KEY).then((val) => {
       if (val === "dark") setIsDark(true);
+      else if (val === "light") setIsDark(false);
     });
   }, []);
 

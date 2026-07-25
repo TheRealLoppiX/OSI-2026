@@ -27,10 +27,14 @@ export default function GerenciarInstituicoes() {
 
   const fetchInstituicoes = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("instituicoes")
       .select("*")
       .order("nome");
+    if (error) {
+      console.error("Erro ao buscar instituições:", error);
+      appAlert.alert("Erro", friendlyError(error, "Não foi possível carregar as instituições."));
+    }
     setInstituicoes(data || []);
     setLoading(false);
   };

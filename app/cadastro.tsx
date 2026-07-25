@@ -51,7 +51,13 @@ export default function Cadastro() {
       .from("instituicoes")
       .select("nome, sigla")
       .order("nome")
-      .then(({ data }) => setInstituicoes(data || []));
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Erro ao carregar instituições:", error);
+          return;
+        }
+        setInstituicoes(data || []);
+      });
   }, []);
 
   const handleEnviarCodigo = async () => {

@@ -51,6 +51,26 @@ serve(async (req: Request) => {
       });
     }
 
+    // Cooldown de 60s entre envios para o mesmo e-mail (evita email bombing).
+    // Sem coluna dedicada: como expires_at = criação + 15min, se ainda restam
+    // mais de 14min é porque o registro foi criado há menos de ~60s.
+    const { data: verificacaoRecente } = await supabase
+      .from("verificacao_email")
+      .select("expires_at")
+      .eq("email", email)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+
+    if (
+      verificacaoRecente &&
+      new Date(verificacaoRecente.expires_at).getTime() - Date.now() > 14 * 60 * 1000
+    ) {
+      return new Response(
+        JSON.stringify({ error: "Aguarde um minuto antes de solicitar um novo código." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Gera OTP de 6 dígitos com crypto seguro
     const arr = new Uint32Array(1);
     crypto.getRandomValues(arr);
@@ -113,7 +133,8 @@ serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    console.error(err);
+    return new Response(JSON.stringify({ error: "Erro interno. Tente novamente mais tarde." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -30,12 +30,13 @@ export default function Historico() {
       const user = await authService.getUser();
       if (!user?.id) return;
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("tentativas")
         .select("*")
         .eq("usuario_id", user.id)
         .order("created_at", { ascending: false });
 
+      if (error) console.error("Erro ao carregar histórico:", error);
       setTentativas(data || []);
       setLoading(false);
     };

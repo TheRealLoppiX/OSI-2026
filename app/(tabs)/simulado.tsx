@@ -1,7 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { MotiView } from "moti";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -81,6 +81,19 @@ export default function SimuladoNativo() {
   const [modalIAResultVisible, setModalIAResultVisible] = useState(false);
   const [htmlAnaliseOSIA, setHtmlAnaliseOSIA] = useState("");
 
+  // Trava síncrona contra duplo toque em "Continuar" — o state showFeedback
+  // só é commitado no próximo render, então dois toques rápidos no botão
+  // conseguiam passar pelo mesmo `setShowFeedback(false)` e avançar/pontuar
+  // duas vezes antes do React re-renderizar.
+  const avancandoRef = useRef(false);
+
+  // Só libera a trava de "Continuar" depois que currentIdx realmente mudou —
+  // resetar logo após o setCurrentIdx reabriria a mesma janela de corrida
+  // que o guard existe pra fechar.
+  useEffect(() => {
+    avancandoRef.current = false;
+  }, [currentIdx]);
+
   useEffect(() => {
     if (dadosIA) {
       try {
@@ -139,6 +152,10 @@ export default function SimuladoNativo() {
   };
 
   const handleAnswer = (letter: string) => {
+    // showFeedback já sinaliza "esta questão foi respondida" — sem esse guard,
+    // dois toques rápidos em alternativas diferentes registravam duas
+    // respostas para a mesma questão, desalinhando userAnswers com questions.
+    if (showFeedback) return;
     const correct = letter === questions[currentIdx].resposta_correta;
     setUserAnswers((prev) => [...prev, letter]);
     setIsCorrect(correct);
@@ -147,6 +164,8 @@ export default function SimuladoNativo() {
   };
 
   const nextQuestion = async () => {
+    if (avancandoRef.current) return;
+    avancandoRef.current = true;
     setShowFeedback(false);
     if (currentIdx + 1 < questions.length) {
       setCurrentIdx((i) => i + 1);

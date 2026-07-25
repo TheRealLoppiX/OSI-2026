@@ -128,15 +128,17 @@ export default function ListaUsuarios() {
     };
     if (novaSenha.trim().length > 0) updatePayload.senha = novaSenha;
 
-    const { error } = await supabase.from("usuarios").update(updatePayload).eq("id", selectedUser.id);
+    const { data, error } = await supabase.from("usuarios").update(updatePayload).eq("id", selectedUser.id).select();
     setUpdating(false);
 
-    if (!error) {
+    if (error) {
+      appAlert.alert("Erro", friendlyError(error, "Falha ao atualizar o aluno."));
+    } else if (!data || data.length === 0) {
+      appAlert.alert("Erro", "Não foi possível atualizar o aluno. Verifique as permissões de edição no banco de dados.");
+    } else {
       appAlert.alert("Sucesso", "Dados do aluno atualizados!");
       setModalVisible(false);
       fetchUsers();
-    } else {
-      appAlert.alert("Erro", friendlyError(error, "Falha ao atualizar o aluno."));
     }
   };
 

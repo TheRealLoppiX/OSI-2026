@@ -28,15 +28,18 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     setLoading(true);
     try {
-      const { count: alunos } = await supabase
+      const { count: alunos, error: erroAlunos } = await supabase
         .from("usuarios")
         .select("*", { count: "exact", head: true });
-      const { count: simulados } = await supabase
+      if (erroAlunos) console.error("Erro ao contar alunos:", erroAlunos);
+      const { count: simulados, error: erroSimulados } = await supabase
         .from("simulados")
         .select("*", { count: "exact", head: true });
-      const { count: questoes } = await supabase
+      if (erroSimulados) console.error("Erro ao contar simulados:", erroSimulados);
+      const { count: questoes, error: erroQuestoes } = await supabase
         .from("questoes")
         .select("*", { count: "exact", head: true });
+      if (erroQuestoes) console.error("Erro ao contar questões:", erroQuestoes);
       setStats({
         alunos: alunos || 0,
         simulados: simulados || 0,

@@ -23,6 +23,7 @@ export default function FlashcardGenerator() {
   const { colors } = useTheme();
   const [loading, setLoading] = useState(false);
   const cardsRef = useRef<(ViewShot | null)[]>([]);
+  const baixandoRef = useRef(false);
 
   let questoes: any[] = [];
   try {
@@ -32,12 +33,19 @@ export default function FlashcardGenerator() {
   }
 
   const baixarFlashcards = async () => {
-    if (questoes.length === 0) return;
+    if (questoes.length === 0 || baixandoRef.current) return;
+    baixandoRef.current = true;
 
     setLoading(true);
     const zip = new JSZip();
 
     try {
+      // As imagens dos flashcards são carregadas via rede (<Image source={{uri}}>);
+      // sem esperar o carregamento, a captura do ViewShot podia sair sem a
+      // imagem (espaço em branco), sem nenhum erro visível.
+      const urlsImagens = questoes.map((q) => q.imagem_url).filter(Boolean);
+      await Promise.all(urlsImagens.map((uri) => Image.prefetch(uri).catch(() => {})));
+
       for (let i = 0; i < questoes.length; i++) {
         const currentCard = cardsRef.current[i];
         if (currentCard && currentCard.capture) {
@@ -63,11 +71,14 @@ export default function FlashcardGenerator() {
           mimeType: "application/zip",
           dialogTitle: "Baixar meus Flashcards",
         });
+      } else {
+        appAlert.alert("Aviso", "Compartilhamento não disponível neste dispositivo.");
       }
     } catch (error: any) {
       appAlert.alert("Erro", friendlyError(error, "Falha ao gerar os arquivos dos flashcards."));
     } finally {
       setLoading(false);
+      baixandoRef.current = false;
     }
   };
 

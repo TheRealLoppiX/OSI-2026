@@ -1,7 +1,7 @@
 // src/services/auth.ts
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import bcrypt from "bcryptjs";
-import { cadastroSchema } from "../schemas/authSchema";
+import { cadastroSchema, docenteSchema } from "../schemas/authSchema";
 import { supabase } from "./supabase";
 
 const USER_KEY = "@OSI_User";
@@ -111,9 +111,12 @@ export const authService = {
       if (!senhaCorreta) {
         // Fallback de segurança para senhas antigas em texto puro (testes)
         if (senhaInserida === usuarioEncontrado.senha) {
+          console.warn(
+            `[auth] Login via fallback de senha em texto puro para usuário "${usuarioEncontrado.usuario}"${ehDocente ? " (docente/admin)" : ""}`
+          );
           // Se for docente e não tiver a propriedade role no banco, a gente força aqui para o front saber
           if (ehDocente) usuarioEncontrado.role = "admin";
-          
+
           await this.saveUser(usuarioEncontrado);
           return usuarioEncontrado;
         }
@@ -171,18 +174,34 @@ export const authService = {
     // Sem try/catch aqui de propósito: os erros precisam propagar para o
     // catch de quem chama (ex.: simulado.tsx), senão a falha fica muda e o
     // usuário acha que o XP foi salvo quando não foi.
-    // Lê do banco em vez do cache local para não sobrescrever XP ganho
-    // em outra sessão ou dispositivo entre o início e o fim do simulado.
-    const { data: atual, error: errLeitura } = await supabase
-      .from("usuarios")
-      .select("pontuacao")
-      .eq("id", userId)
-      .single();
-    if (errLeitura) throw errLeitura;
+    // Lê-e-escreve não é atômico: duas chamadas concorrentes (duplo toque,
+    // dois dispositivos) podem ler o mesmo valor e uma delas perder o
+    // incremento da outra. Por isso o update é condicionado ao valor lido
+    // (concorrência otimista) e, se 0 linhas forem afetadas, tentamos de novo.
+    let novosPontos = 0;
+    let sucesso = false;
+    for (let tentativa = 0; tentativa < 3 && !sucesso; tentativa++) {
+      const { data: atual, error: errLeitura } = await supabase
+        .from("usuarios")
+        .select("pontuacao")
+        .eq("id", userId)
+        .single();
+      if (errLeitura) throw errLeitura;
 
-    const novosPontos = (atual?.pontuacao || 0) + xp;
-    const { error: errUpdate } = await supabase.from("usuarios").update({ pontuacao: novosPontos }).eq("id", userId);
-    if (errUpdate) throw errUpdate;
+      const pontuacaoAntiga = atual?.pontuacao || 0;
+      novosPontos = pontuacaoAntiga + xp;
+
+      const { data: atualizado, error: errUpdate } = await supabase
+        .from("usuarios")
+        .update({ pontuacao: novosPontos })
+        .eq("id", userId)
+        .eq("pontuacao", pontuacaoAntiga)
+        .select("id");
+      if (errUpdate) throw errUpdate;
+
+      sucesso = !!atualizado && atualizado.length > 0;
+    }
+    if (!sucesso) throw new Error("Não foi possível salvar seu XP, tente novamente.");
 
     const user = await this.getUser();
     if (user) await this.saveUser({ ...user, pontuacao: novosPontos });
@@ -190,7 +209,7 @@ export const authService = {
 
   async salvarTentativa(dados: { simuladoId?: string; titulo: string; acertos: number; total: number }) {
     const user = await this.getUser();
-    if (!user?.id) return;
+    if (!user?.id) throw new Error("Sessão inválida. Faça login novamente para salvar sua tentativa.");
 
     const { error } = await supabase.from("tentativas").insert([{
       usuario_id: user.id,
@@ -205,25 +224,41 @@ export const authService = {
   },
 
   async atualizarStreak(userId: string) {
-    const { data, error: errLeitura } = await supabase
-      .from("usuarios")
-      .select("ultimo_acesso, streak_dias")
-      .eq("id", userId)
-      .single();
-    if (errLeitura) throw errLeitura;
+    let novoStreak = 0;
+    let hoje = new Date().toISOString().split("T")[0];
+    let sucesso = false;
+    for (let tentativa = 0; tentativa < 3 && !sucesso; tentativa++) {
+      const { data, error: errLeitura } = await supabase
+        .from("usuarios")
+        .select("ultimo_acesso, streak_dias")
+        .eq("id", userId)
+        .single();
+      if (errLeitura) throw errLeitura;
 
-    const hoje = new Date().toISOString().split("T")[0];
-    // Mesma data: streak já contabilizado hoje, não incrementa
-    if (data?.ultimo_acesso === hoje) return;
+      hoje = new Date().toISOString().split("T")[0];
+      // Mesma data: streak já contabilizado hoje, não incrementa
+      if (data?.ultimo_acesso === hoje) return;
 
-    const ontem = new Date(Date.now() - 86400000).toISOString().split("T")[0];
-    const novoStreak = data?.ultimo_acesso === ontem ? (data.streak_dias || 0) + 1 : 1;
+      const ontem = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+      const ultimoAcessoAntigo = data?.ultimo_acesso ?? null;
+      novoStreak = ultimoAcessoAntigo === ontem ? (data?.streak_dias || 0) + 1 : 1;
 
-    const { error: errUpdate } = await supabase
-      .from("usuarios")
-      .update({ streak_dias: novoStreak, ultimo_acesso: hoje })
-      .eq("id", userId);
-    if (errUpdate) throw errUpdate;
+      // Concorrência otimista: condiciona o update ao ultimo_acesso lido,
+      // e tenta de novo se outra chamada já tiver atualizado nesse meio-tempo.
+      let query = supabase
+        .from("usuarios")
+        .update({ streak_dias: novoStreak, ultimo_acesso: hoje })
+        .eq("id", userId);
+      query = ultimoAcessoAntigo === null
+        ? query.is("ultimo_acesso", null)
+        : query.eq("ultimo_acesso", ultimoAcessoAntigo);
+
+      const { data: atualizado, error: errUpdate } = await query.select("id");
+      if (errUpdate) throw errUpdate;
+
+      sucesso = !!atualizado && atualizado.length > 0;
+    }
+    if (!sucesso) throw new Error("Não foi possível atualizar sua sequência de dias, tente novamente.");
 
     const user = await this.getUser();
     if (user) await this.saveUser({ ...user, streak_dias: novoStreak, ultimo_acesso: hoje });
@@ -231,11 +266,12 @@ export const authService = {
 
   async registrarDocente(dadosDocente: any) {
   try {
-    const { nome, usuario, email, senha } = dadosDocente;
-
-    if (!nome || !usuario || !email || !senha) {
-      throw new Error("Preencha todos os campos para cadastrar o docente.");
+    const resultado = docenteSchema.safeParse(dadosDocente);
+    if (!resultado.success) {
+      throw new Error(resultado.error.issues[0].message);
     }
+
+    const { nome, usuario, email, senha } = dadosDocente;
 
     // Criptografia usando o mesmo fallback seguro instalado no app
     const salt = bcrypt.genSaltSync(10);

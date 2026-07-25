@@ -25,16 +25,33 @@ serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Busca verificação válida
+    // Busca verificação pendente para o e-mail (independente do otp, para poder
+    // contar tentativas erradas e travar após um limite — proteção contra brute-force).
     const { data: verificacao } = await supabase
       .from("verificacao_email")
       .select("*")
       .eq("email", email)
-      .eq("otp", otp)
       .gt("expires_at", new Date().toISOString())
       .maybeSingle();
 
     if (!verificacao) return json({ error: "Código inválido ou expirado." }, 401);
+
+    if (verificacao.otp !== otp) {
+      const dadosAtuais = (verificacao.dados as any) ?? {};
+      const tentativas = (dadosAtuais.tentativas ?? 0) + 1;
+
+      if (tentativas >= 5) {
+        await supabase.from("verificacao_email").delete().eq("id", verificacao.id);
+        return json({ error: "Código inválido ou expirado. Solicite um novo código." }, 401);
+      }
+
+      await supabase
+        .from("verificacao_email")
+        .update({ dados: { ...dadosAtuais, tentativas } })
+        .eq("id", verificacao.id);
+
+      return json({ error: "Código inválido ou expirado." }, 401);
+    }
 
     const dados = verificacao.dados as any;
     const { nome, usuario, instituicao, senhaCriptografada } = dados;
@@ -68,6 +85,7 @@ serve(async (req: Request) => {
     // Inclui role no retorno (gerenciado pelo app, não pelo banco)
     return json({ user: { ...newUser, role: "aluno" } });
   } catch (err: any) {
-    return json({ error: err.message }, 500);
+    console.error(err);
+    return json({ error: "Erro interno. Tente novamente mais tarde." }, 500);
   }
 });

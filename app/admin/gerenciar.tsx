@@ -32,6 +32,7 @@ export default function GerenciarSimulados() {
   const [loadingQuestoes, setLoadingQuestoes] = useState(false);
   const [salvandoVinculo, setSalvandoVinculo] = useState(false);
   const [buscaQuestao, setBuscaQuestao] = useState("");
+  const [criandoSimulado, setCriandoSimulado] = useState(false);
 
   const fetchSimulados = async () => {
     setLoading(true);
@@ -43,8 +44,11 @@ export default function GerenciarSimulados() {
   useEffect(() => { fetchSimulados(); }, []);
 
   const handleCriarSimulado = async () => {
+    if (criandoSimulado) return;
     if (!novoTitulo || !novaMateria) return appAlert.alert("Erro", "Título e Matéria são obrigatórios.");
+    setCriandoSimulado(true);
     const { error } = await supabase.from("simulados").insert([{ titulo: novoTitulo, materia: novaMateria, url_google_forms: novaUrl || null }]);
+    setCriandoSimulado(false);
     if (!error) {
       setModalVisible(false);
       setNovoTitulo(""); setNovaMateria(""); setNovaUrl("");
@@ -235,11 +239,11 @@ export default function GerenciarSimulados() {
             <TextInput style={inputStyle} placeholder="Matéria (Ex: Redes, Hardware)" placeholderTextColor={colors.textLight} value={novaMateria} onChangeText={setNovaMateria} />
             <TextInput style={inputStyle} placeholder="URL Google Forms (Opcional)" placeholderTextColor={colors.textLight} value={novaUrl} onChangeText={setNovaUrl} />
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)}>
+              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)} disabled={criandoSimulado}>
                 <Text style={{ color: colors.text }}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary }]} onPress={handleCriarSimulado}>
-                <Text style={{ color: "#fff", fontWeight: "bold" }}>Criar</Text>
+              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary }]} onPress={handleCriarSimulado} disabled={criandoSimulado}>
+                {criandoSimulado ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "bold" }}>Criar</Text>}
               </TouchableOpacity>
             </View>
           </View>

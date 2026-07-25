@@ -34,6 +34,12 @@ export default function TutorChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  // loading é state (não commita antes do próximo render), então dois toques
+  // rápidos no botão de enviar passavam pela checagem abaixo antes do
+  // primeiro setLoading(true) surtir efeito. Trava síncrona via ref.
+  const enviandoRef = useRef(false);
+
+  const gerarId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
   // Segue a altura real do teclado nativo (funciona com edge-to-edge no Android,
   // onde o KeyboardAvoidingView/windowSoftInputMode clássico não empurra a tela).
@@ -43,9 +49,10 @@ export default function TutorChat() {
   }));
 
   const sendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || enviandoRef.current) return;
+    enviandoRef.current = true;
 
-    const userMsg: Message = { id: Date.now().toString(), text: input, from: "user" };
+    const userMsg: Message = { id: gerarId(), text: input, from: "user" };
     setMessages((prev) => [...prev, userMsg]);
     const userPrompt = input;
     setInput("");
@@ -53,12 +60,13 @@ export default function TutorChat() {
 
     try {
       const response = await aiService.askGemini(userPrompt, 800);
-      const aiMsg: Message = { id: (Date.now() + 1).toString(), text: response, from: "ai" };
+      const aiMsg: Message = { id: gerarId(), text: response, from: "ai" };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (error) {
       appAlert.alert("Erro", friendlyError(error, "OSIA não conseguiu responder agora. Tente novamente."));
     } finally {
       setLoading(false);
+      enviandoRef.current = false;
     }
   };
 

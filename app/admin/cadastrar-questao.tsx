@@ -96,18 +96,21 @@ export default function CadastrarQuestao() {
     };
 
     let error;
+    let data;
     if (modoEdicao) {
-      ({ error } = await supabase.from("questoes").update(payload).eq("id", questaoId));
+      ({ data, error } = await supabase.from("questoes").update(payload).eq("id", questaoId).select());
     } else {
-      ({ error } = await supabase.from("questoes").insert([{
+      ({ data, error } = await supabase.from("questoes").insert([{
         ...payload,
         simulado_id: simuladoId ? Number(simuladoId) : null,
-      }]));
+      }]).select());
     }
 
     setLoading(false);
     if (error) {
       appAlert.alert("Erro ao salvar", friendlyError(error, "Não foi possível salvar a questão."));
+    } else if (!data || data.length === 0) {
+      appAlert.alert("Erro ao salvar", "Nenhuma alteração foi salva. Você pode não ter permissão para esta ação.");
     } else {
       appAlert.alert("Sucesso", modoEdicao ? "Questão atualizada!" : "Questão adicionada à base da OSI!");
       router.back();

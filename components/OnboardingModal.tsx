@@ -30,13 +30,15 @@ export function OnboardingModal() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
-      if (!val) setVisible(true);
-    });
+    AsyncStorage.getItem(ONBOARDING_KEY)
+      .then((val) => {
+        if (!val) setVisible(true);
+      })
+      .catch(() => {});
   }, []);
 
   const fechar = () => {
-    AsyncStorage.setItem(ONBOARDING_KEY, "true");
+    AsyncStorage.setItem(ONBOARDING_KEY, "true").catch(() => {});
     setVisible(false);
   };
 
@@ -50,7 +52,7 @@ export function OnboardingModal() {
   const ultimo = step === SLIDES.length - 1;
 
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={fechar}>
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={fechar}>
       <View style={styles.overlay}>
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           <TouchableOpacity

@@ -18,16 +18,25 @@ type AlertState = {
 
 type Listener = (state: AlertState | null) => void;
 let listener: Listener | null = null;
+// Fila de alertas: se um segundo alert() chegar antes do primeiro ser
+// fechado, ele não pode sobrescrever/descartar o primeiro silenciosamente —
+// entra na fila e é exibido assim que o atual for fechado.
+let queue: AlertState[] = [];
+
+function showNext() {
+  listener?.(queue[0] ?? null);
+}
 
 // Substituto temático do Alert.alert nativo (que ignora o tema claro/escuro do
 // app). Mesma assinatura de Alert.alert para minimizar a migração nas telas.
 export const appAlert = {
   alert(title: string, message?: string, buttons?: AppAlertButton[]) {
-    listener?.({
+    queue.push({
       title,
       message,
       buttons: buttons && buttons.length > 0 ? buttons : [{ text: "OK" }],
     });
+    if (queue.length === 1) showNext();
   },
 };
 
@@ -37,6 +46,7 @@ export function AppAlertProvider() {
 
   useEffect(() => {
     listener = setState;
+    showNext();
     return () => {
       listener = null;
     };
@@ -44,13 +54,18 @@ export function AppAlertProvider() {
 
   if (!state) return null;
 
+  const dismissCurrent = () => {
+    queue.shift();
+    showNext();
+  };
+
   const handlePress = (btn: AppAlertButton) => {
-    setState(null);
+    dismissCurrent();
     btn.onPress?.();
   };
 
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={() => setState(null)}>
+    <Modal transparent visible animationType="fade" onRequestClose={dismissCurrent}>
       <View style={styles.overlay}>
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.title, { color: colors.text }]}>{state.title}</Text>

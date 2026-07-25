@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { authService } from "../services/auth";
+import { registerForPushNotificationsAsync } from "../services/notificationService";
 
 interface AuthContextType {
   usuario: any;
@@ -10,6 +11,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [usuario, setUsuario] = useState<any>(undefined);
+  const pushRegistradoParaId = useRef<string | null>(null);
 
   useEffect(() => {
     authService
@@ -17,6 +19,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((user) => setUsuario(user ?? null))
       .catch(() => setUsuario(null));
   }, []);
+
+  useEffect(() => {
+    if (!usuario?.id || pushRegistradoParaId.current === usuario.id) return;
+    pushRegistradoParaId.current = usuario.id;
+    registerForPushNotificationsAsync(usuario.id).catch((err) => {
+      console.error("Erro ao registrar push token:", err);
+    });
+  }, [usuario]);
 
   return (
     <AuthContext.Provider value={{ usuario, setUsuario }}>

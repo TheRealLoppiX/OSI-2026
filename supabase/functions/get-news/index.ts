@@ -134,9 +134,9 @@ Se não houver nenhuma notícia relevante, retorne {"noticias":[]}.`,
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
+    console.error(err);
     return new Response(
-      JSON.stringify({ error: msg }),
+      JSON.stringify({ error: "Erro interno. Tente novamente mais tarde." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
