@@ -2,7 +2,7 @@ import { supabase } from "./supabase";
 
 // Função base reutilizada por todos os métodos do serviço.
 // O nome histórico "askGemini" veio da versão anterior que usava Google Gemini;
-// hoje a inferência roda no Groq (llama-3.3-70b), mas o contrato da função é idêntico.
+// hoje a inferência roda no Groq (qwen/qwen3.6-27b), mas o contrato da função é idêntico.
 //
 // A chamada à Groq roda no servidor (Edge Function "groq-proxy"), não mais
 // direto do cliente — a chave da API nunca fica embutida no bundle do app

@@ -82,7 +82,7 @@ serve(async (req: Request) => {
         "Authorization": `Bearer ${groqKey}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "qwen/qwen3.6-27b",
         messages: [
           {
             role: "system",
@@ -108,6 +108,10 @@ Se não houver nenhuma notícia relevante, retorne {"noticias":[]}.`,
         ],
         response_format: { type: "json_object" },
         temperature: 0.1,
+        // Qwen 3.6 é um modelo híbrido de raciocínio; sem isso ele pode emitir
+        // texto de "pensamento" antes do JSON e quebrar o parse abaixo.
+        reasoning_effort: "none",
+        reasoning_format: "hidden",
       }),
     });
 

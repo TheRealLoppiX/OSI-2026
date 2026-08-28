@@ -35,10 +35,15 @@ serve(async (req: Request) => {
     }
 
     const body: any = {
-      model: "llama-3.3-70b-versatile",
+      model: "qwen/qwen3.6-27b",
       messages: mensagens,
       max_tokens: maxTokens ?? 800,
       temperature: jsonMode ? 0.2 : 0.7,
+      // Qwen 3.6 é um modelo híbrido de raciocínio; sem isso ele pode emitir
+      // texto de "pensamento" junto da resposta, quebrando o JSON.parse() no
+      // cliente (gerarQuestoesIA) e poluindo respostas de texto simples.
+      reasoning_effort: "none",
+      reasoning_format: "hidden",
     };
     if (jsonMode) body.response_format = { type: "json_object" };
 
