@@ -35,7 +35,7 @@ serve(async (req: Request) => {
     }
 
     const body: any = {
-      model: "qwen/qwen3.6-27b",
+      model: "qwen/qwen3.8-27b",
       messages: mensagens,
       max_tokens: maxTokens ?? 800,
       temperature: jsonMode ? 0.2 : 0.7,
