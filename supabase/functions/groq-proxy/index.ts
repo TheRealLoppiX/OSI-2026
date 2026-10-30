@@ -8,13 +8,8 @@ const corsHeaders = {
 // Proxy server-side para a API da Groq. Existe para tirar a chave da Groq do
 // bundle do cliente (EXPO_PUBLIC_GROQ_API_KEY hoje é extraível via engenharia
 // reversa do APK) — a chave real fica só aqui, como secret do projeto.
-//
-// Preparada, ainda NÃO conectada ao app: falta rodar
-//   supabase secrets set GROQ_API_KEY=<chave> --project-ref yvdnsygxztmgmkaqrpxq
-//   supabase functions deploy groq-proxy
-// e trocar chamarGroq() em src/services/aiService.ts para chamar esta function
-// via supabase.functions.invoke("groq-proxy", { body: { mensagens, maxTokens, jsonMode } })
-// em vez do fetch direto à Groq.
+// Chamada pelo app via supabase.functions.invoke("groq-proxy") em
+// src/services/aiService.ts (chamarGroq).
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -39,7 +34,7 @@ serve(async (req: Request) => {
       messages: mensagens,
       max_tokens: maxTokens ?? 800,
       temperature: jsonMode ? 0.2 : 0.7,
-      // Qwen 3.6 é um modelo híbrido de raciocínio; sem isso ele pode emitir
+      // Qwen 3.8 é um modelo híbrido de raciocínio; sem isso ele pode emitir
       // texto de "pensamento" junto da resposta, quebrando o JSON.parse() no
       // cliente (gerarQuestoesIA) e poluindo respostas de texto simples.
       reasoning_effort: "none",
