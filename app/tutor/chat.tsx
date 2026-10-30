@@ -60,7 +60,7 @@ export default function TutorChat() {
     setLoading(true);
 
     try {
-      const response = await aiService.askGemini(userPrompt, 800);
+      const response = await aiService.askGemini(userPrompt, 1200);
       const aiMsg: Message = { id: gerarId(), text: response, from: "ai" };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (error) {
