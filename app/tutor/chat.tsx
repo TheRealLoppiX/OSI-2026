@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
+import MarkdownText from "../../components/MarkdownText";
 import { aiService } from "../../src/services/aiService";
 import { useTheme } from "../../src/context/ThemeContext";
 import { appAlert } from "../../src/services/appAlert";
@@ -100,9 +101,11 @@ export default function TutorChat() {
                   : { alignSelf: "flex-start", backgroundColor: colors.card, borderBottomLeftRadius: 2, elevation: 1 },
               ]}
             >
-              <Text style={[styles.msgText, { color: item.from === "user" ? "#fff" : colors.text }]}>
-                {item.text}
-              </Text>
+              {item.from === "ai" ? (
+                <MarkdownText>{item.text}</MarkdownText>
+              ) : (
+                <Text style={[styles.msgText, { color: "#fff" }]}>{item.text}</Text>
+              )}
             </View>
           )}
         />

@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { OnboardingModal } from "../../components/OnboardingModal";
+import MarkdownText from "../../components/MarkdownText";
 import { aiService } from "../../src/services/aiService";
 import { authService } from "../../src/services/auth";
 import { newsService } from "../../src/services/newsService";
@@ -250,7 +251,7 @@ export default function HomeAluno() {
             <MaterialCommunityIcons name="robot-happy" size={22} color="#fff" />
             <Text style={styles.osiaTitle}>OSIA lhe diz:</Text>
           </View>
-          <Text style={styles.osiaText}>{osiaTip}</Text>
+          <MarkdownText color="rgba(255,255,255,0.9)" style={styles.osiaText}>{osiaTip}</MarkdownText>
         </View>
 
         <View style={styles.actionRow}>
