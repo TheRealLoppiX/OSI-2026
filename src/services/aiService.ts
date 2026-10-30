@@ -1,8 +1,11 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "./supabase";
+
+const CACHE_FRASE_MS = 6 * 60 * 60 * 1000;
 
 // Função base reutilizada por todos os métodos do serviço.
 // O nome histórico "askGemini" veio da versão anterior que usava Google Gemini;
-// hoje a inferência roda no Groq (qwen/qwen3.8-27b), mas o contrato da função é idêntico.
+// hoje a inferência roda no Groq (cadeia de modelos no groq-proxy), mas o contrato da função é idêntico.
 //
 // A chamada à Groq roda no servidor (Edge Function "groq-proxy"), não mais
 // direto do cliente — a chave da API nunca fica embutida no bundle do app
@@ -12,7 +15,12 @@ async function chamarGroq(mensagens: { role: string; content: string }[], maxTok
     body: { mensagens, maxTokens, jsonMode },
   });
 
-  if (error) throw new Error(data?.error || error.message);
+  if (error) {
+    // Em status não-2xx o invoke devolve data=null; a mensagem do servidor
+    // (ex.: "A IA está com muitos pedidos agora") fica no corpo da Response
+    const corpo = await (error as any).context?.json?.().catch(() => null);
+    throw new Error(corpo?.error || data?.error || error.message);
+  }
   if (!data?.content) throw new Error("Resposta vazia da IA.");
   return data.content;
 }
@@ -36,9 +44,27 @@ export const aiService = {
     }
   },
 
+  // Cacheada por 6h: a home chama isso a cada montagem e, no plano gratuito
+  // da Groq, cada chamada disputa a mesma cota do chat e do gerador
   getPalavraMotivacional: async (contexto: string = "Motivação") => {
+    const chave = `osia_frase_${contexto}`;
+    try {
+      const salvo = JSON.parse((await AsyncStorage.getItem(chave)) || "null");
+      if (salvo && Date.now() - salvo.em < CACHE_FRASE_MS) return salvo.frase as string;
+    } catch {}
+
     const prompt = `Gere uma frase motivacional formal sobre ${contexto} de no máximo 150 caracteres para um aluno do ensino médio/superior.`;
-    return await aiService.askGemini(prompt, 150);
+    try {
+      const frase = await chamarGroq(
+        [{ role: "system", content: SYSTEM_OSIA }, { role: "user", content: prompt }],
+        150
+      );
+      AsyncStorage.setItem(chave, JSON.stringify({ frase, em: Date.now() })).catch(() => {});
+      return frase;
+    } catch (error) {
+      console.error("Erro na Groq:", error);
+      return "Mantenha o foco nos estudos, a OSI 2026 está chegando!";
+    }
   },
 
   getTutorTip: async (contexto: string = "Informática") => {
