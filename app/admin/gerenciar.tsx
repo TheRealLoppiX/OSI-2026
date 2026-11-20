@@ -7,18 +7,18 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { supabase } from "../../src/services/supabase";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function GerenciarSimulados() {
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [simulados, setSimulados] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -214,19 +214,19 @@ export default function GerenciarSimulados() {
       </View>
 
       <View style={styles.atalhos}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.atalhoBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => router.push("/admin/cadastrar-questao" as any)}
         >
           <Ionicons name="help-circle-outline" size={18} color={colors.primary} />
           <Text style={[styles.atalhoBtnText, { color: colors.primary }]}>Banco de Questões</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.atalhoBtn, { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0" }]}
+        <TouchableOpacity accessibilityRole="button"
+          style={[styles.atalhoBtn, { backgroundColor: colors.successSoft, borderColor: colors.success }]}
           onPress={() => router.push("/admin/importar-questoes" as any)}
         >
-          <Ionicons name="cloud-upload-outline" size={18} color="#10B981" />
-          <Text style={[styles.atalhoBtnText, { color: "#10B981" }]}>Importar Planilha</Text>
+          <Ionicons name="cloud-upload-outline" size={18} color={colors.success} />
+          <Text style={[styles.atalhoBtnText, { color: colors.success }]}>Importar Planilha</Text>
         </TouchableOpacity>
       </View>
 
@@ -239,11 +239,11 @@ export default function GerenciarSimulados() {
             <TextInput style={inputStyle} placeholder="Matéria (Ex: Redes, Hardware)" placeholderTextColor={colors.textLight} value={novaMateria} onChangeText={setNovaMateria} />
             <TextInput style={inputStyle} placeholder="URL Google Forms (Opcional)" placeholderTextColor={colors.textLight} value={novaUrl} onChangeText={setNovaUrl} />
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)} disabled={criandoSimulado}>
+              <TouchableOpacity accessibilityRole="button" style={[styles.btn, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)} disabled={criandoSimulado}>
                 <Text style={{ color: colors.text }}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary }]} onPress={handleCriarSimulado} disabled={criandoSimulado}>
-                {criandoSimulado ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "bold" }}>Criar</Text>}
+              <TouchableOpacity accessibilityRole="button" style={[styles.btn, { backgroundColor: colors.primary }]} onPress={handleCriarSimulado} disabled={criandoSimulado}>
+                {criandoSimulado ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={{ color: colors.onPrimary, fontWeight: "bold" }}>Criar</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -259,14 +259,14 @@ export default function GerenciarSimulados() {
               {simuladoSelecionado?.titulo} · {questoesSelecionadas.length} selecionadas
             </Text>
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={[styles.criarQuestaoBtn, { backgroundColor: colors.primary }]}
               onPress={() => {
                 setModalQuestoesVisible(false);
                 router.push({ pathname: "/admin/cadastrar-questao", params: { simuladoId: simuladoSelecionado?.id } } as any);
               }}
             >
-              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Ionicons name="add-circle-outline" size={18} color={colors.onPrimary} />
               <Text style={styles.criarQuestaoBtnText}>Criar Nova Questão</Text>
             </TouchableOpacity>
 
@@ -278,15 +278,15 @@ export default function GerenciarSimulados() {
                   <Text style={styles.statLbl}>Total</Text>
                 </View>
                 <View style={styles.statChip}>
-                  <Text style={[styles.statNum, { color: "#10B981" }]}>{statsQuestoes.facil}</Text>
+                  <Text style={[styles.statNum, { color: colors.success }]}>{statsQuestoes.facil}</Text>
                   <Text style={styles.statLbl}>Fáceis</Text>
                 </View>
                 <View style={styles.statChip}>
-                  <Text style={[styles.statNum, { color: "#F59E0B" }]}>{statsQuestoes.media}</Text>
+                  <Text style={[styles.statNum, { color: colors.warning }]}>{statsQuestoes.media}</Text>
                   <Text style={styles.statLbl}>Médias</Text>
                 </View>
                 <View style={styles.statChip}>
-                  <Text style={[styles.statNum, { color: "#EF4444" }]}>{statsQuestoes.dificil}</Text>
+                  <Text style={[styles.statNum, { color: colors.danger }]}>{statsQuestoes.dificil}</Text>
                   <Text style={styles.statLbl}>Difíceis</Text>
                 </View>
                 <View style={styles.statChip}>
@@ -315,7 +315,7 @@ export default function GerenciarSimulados() {
             )}
 
             {!loadingQuestoes && buscaQuestao.trim().length > 0 && (
-              <TouchableOpacity onPress={handleSelecionarFiltradas} style={styles.selecionarFiltradasBtn}>
+              <TouchableOpacity accessibilityRole="button" onPress={handleSelecionarFiltradas} style={styles.selecionarFiltradasBtn}>
                 <Text style={[styles.selecionarFiltradasText, { color: colors.primary }]}>
                   {questoesFiltradas.every((q) => questoesSelecionadas.includes(q.id)) && questoesFiltradas.length > 0
                     ? `Desmarcar ${questoesFiltradas.length} resultado(s)`
@@ -328,12 +328,12 @@ export default function GerenciarSimulados() {
               <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 30 }} />
             ) : questoesBanco.length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="help-buoy-outline" size={40} color="#CBD5E1" />
+                <Ionicons name="help-buoy-outline" size={40} color={colors.textMuted} />
                 <Text style={[styles.emptyText, { color: colors.textLight }]}>Nenhuma questão no banco ainda.</Text>
               </View>
             ) : questoesFiltradas.length === 0 ? (
               <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={40} color="#CBD5E1" />
+                <Ionicons name="search-outline" size={40} color={colors.textMuted} />
                 <Text style={[styles.emptyText, { color: colors.textLight }]}>Nenhuma questão encontrada para "{buscaQuestao}".</Text>
               </View>
             ) : (
@@ -350,17 +350,17 @@ export default function GerenciarSimulados() {
                         accessibilityRole="button"
                         accessibilityLabel={isChecked ? "Remover seleção da questão" : "Selecionar questão"}
                       >
-                        <Ionicons name={isChecked ? "checkbox" : "square-outline"} size={22} color={isChecked ? colors.primary : "#94A3B8"} />
+                        <Ionicons name={isChecked ? "checkbox" : "square-outline"} size={22} color={isChecked ? colors.primary : colors.textLight} />
                       </TouchableOpacity>
-                      <TouchableOpacity style={{ flex: 1 }} onPress={() => handleToggleSelect(item.id)}>
+                      <TouchableOpacity accessibilityRole="button" style={{ flex: 1 }} onPress={() => handleToggleSelect(item.id)}>
                         <Text style={[styles.questaoTextoForm, { color: colors.text }]} numberOfLines={2}>{item.enunciado}</Text>
                         <View style={styles.questaoMeta}>
                           {item.materia && <Text style={styles.questaoTag}>{item.materia}</Text>}
                           {item.dificuldade && (
                             <Text style={[
                               styles.questaoTag,
-                              item.dificuldade === "Fácil" && { backgroundColor: "#DCFCE7", color: "#166534" },
-                              item.dificuldade === "Difícil" && { backgroundColor: "#FEE2E2", color: "#991B1B" },
+                              item.dificuldade === "Fácil" && { backgroundColor: colors.successSoft, color: colors.success },
+                              item.dificuldade === "Difícil" && { backgroundColor: colors.dangerSoft, color: colors.danger },
                             ]}>{item.dificuldade}</Text>
                           )}
                         </View>
@@ -380,7 +380,7 @@ export default function GerenciarSimulados() {
                         accessibilityRole="button"
                         accessibilityLabel="Excluir questão"
                       >
-                        <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                        <Ionicons name="trash-outline" size={18} color={colors.danger} />
                       </TouchableOpacity>
                     </View>
                   );
@@ -389,11 +389,11 @@ export default function GerenciarSimulados() {
             )}
 
             <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.border }]} onPress={() => setModalQuestoesVisible(false)} disabled={salvandoVinculo}>
+              <TouchableOpacity accessibilityRole="button" style={[styles.btn, { backgroundColor: colors.border }]} onPress={() => setModalQuestoesVisible(false)} disabled={salvandoVinculo}>
                 <Text style={{ color: colors.text }}>Fechar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary }]} onPress={handleSalvarQuestoesNoSimulado} disabled={salvandoVinculo}>
-                {salvandoVinculo ? <ActivityIndicator color="#fff" /> : <Text style={{ color: "#fff", fontWeight: "bold" }}>Salvar</Text>}
+              <TouchableOpacity accessibilityRole="button" style={[styles.btn, { backgroundColor: colors.primary }]} onPress={handleSalvarQuestoesNoSimulado} disabled={salvandoVinculo}>
+                {salvandoVinculo ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={{ color: colors.onPrimary, fontWeight: "bold" }}>Salvar</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -404,7 +404,7 @@ export default function GerenciarSimulados() {
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
       ) : simulados.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="folder-open-outline" size={50} color="#CBD5E1" />
+          <Ionicons name="folder-open-outline" size={50} color={colors.textMuted} />
           <Text style={[styles.emptyText, { color: colors.textLight }]}>Nenhum simulado criado.</Text>
         </View>
       ) : (
@@ -421,7 +421,7 @@ export default function GerenciarSimulados() {
               </View>
               <View style={styles.cardActions}>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: "#EFF6FF" }]}
+                  style={[styles.actionBtn, { backgroundColor: colors.infoSoft }]}
                   onPress={() => router.push({ pathname: "/admin/cadastrar-questao", params: { simuladoId: item.id } } as any)}
                   accessibilityRole="button"
                   accessibilityLabel="Criar questão para este simulado"
@@ -429,20 +429,20 @@ export default function GerenciarSimulados() {
                   <Ionicons name="create-outline" size={18} color={colors.primary} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: "#F0FDF4" }]}
+                  style={[styles.actionBtn, { backgroundColor: colors.successSoft }]}
                   onPress={() => abrirVinculoQuestoes(item)}
                   accessibilityRole="button"
                   accessibilityLabel="Vincular questões"
                 >
-                  <Ionicons name="link-outline" size={18} color="#10B981" />
+                  <Ionicons name="link-outline" size={18} color={colors.success} />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: "#FFF5F5" }]}
+                  style={[styles.actionBtn, { backgroundColor: colors.dangerSoft }]}
                   onPress={() => handleDeletarSimulado(item)}
                   accessibilityRole="button"
                   accessibilityLabel="Excluir simulado"
                 >
-                  <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -456,13 +456,13 @@ export default function GerenciarSimulados() {
         accessibilityRole="button"
         accessibilityLabel="Criar novo simulado"
       >
-        <Ionicons name="add" size={30} color="#fff" />
+        <Ionicons name="add" size={30} color={colors.onPrimary} />
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 60, padding: 25, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 1 },
   title: { fontSize: 20, fontWeight: "bold" },
@@ -476,12 +476,12 @@ const styles = StyleSheet.create({
   cardActions: { flexDirection: "row", gap: 8 },
   actionBtn: { width: 36, height: 36, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   fab: { position: "absolute", right: 25, bottom: 25, width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", elevation: 5 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 },
+  modalOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: "center", padding: 20 },
   modalContent: { padding: 25, borderRadius: 20 },
   modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 4 },
   subtextModal: { fontSize: 13, marginBottom: 12 },
   criarQuestaoBtn: { flexDirection: "row", alignItems: "center", gap: 8, padding: 12, borderRadius: 12, marginBottom: 14, justifyContent: "center" },
-  criarQuestaoBtnText: { color: "#fff", fontWeight: "bold", fontSize: 14 },
+  criarQuestaoBtnText: { color: c.onPrimary, fontWeight: "bold", fontSize: 14 },
   input: { borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 12 },
   btn: { flex: 1, padding: 15, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   questaoRow: { flexDirection: "row", alignItems: "center", padding: 12, borderWidth: 1, borderRadius: 12, marginBottom: 8, gap: 10 },
@@ -493,10 +493,10 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: "row", borderRadius: 12, padding: 10, marginBottom: 10, gap: 4, flexWrap: "wrap" },
   statChip: { flex: 1, minWidth: 50, alignItems: "center", padding: 6 },
   statNum: { fontSize: 16, fontWeight: "900" },
-  statLbl: { fontSize: 9, color: "#94A3B8", fontWeight: "600", marginTop: 1 },
+  statLbl: { fontSize: 9, color: c.textLight, fontWeight: "600", marginTop: 1 },
   questaoTextoForm: { fontSize: 13, marginBottom: 6 },
   questaoMeta: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  questaoTag: { fontSize: 10, fontWeight: "600", backgroundColor: "#F1F5F9", color: "#64748B", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
+  questaoTag: { fontSize: 10, fontWeight: "600", backgroundColor: c.surfaceAlt, color: c.textLight, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
   emptyState: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   emptyText: { fontSize: 16, fontWeight: "bold", marginTop: 12 },
 });

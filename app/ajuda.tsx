@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../components/AppText";
+import { ScreenHeader } from "../components/ScreenHeader";
 import { useTheme } from "../src/context/ThemeContext";
 
 const PERGUNTAS = [
@@ -37,13 +38,7 @@ export default function Ajuda() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Ajuda e Perguntas Frequentes</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <ScreenHeader title="Ajuda e Perguntas Frequentes" />
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
         {PERGUNTAS.map((item, i) => {
@@ -80,15 +75,6 @@ export default function Ajuda() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    paddingTop: 60,
-    padding: 25,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-  },
-  title: { fontSize: 17, fontWeight: "bold", flex: 1, textAlign: "center", marginHorizontal: 10 },
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 12 },
   perguntaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   pergunta: { flex: 1, fontSize: 15, fontWeight: "bold" },

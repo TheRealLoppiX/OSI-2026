@@ -5,18 +5,18 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { authService } from "../../src/services/auth";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function CadastrarDocente() {
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [usuario, setUsuario] = useState("");
@@ -79,16 +79,16 @@ export default function CadastrarDocente() {
         <Text style={[styles.label, { color: colors.text }]}>Senha de Acesso</Text>
         <TextInput style={inputStyle} placeholder="Mínimo de 6 caracteres" placeholderTextColor={colors.textLight} secureTextEntry value={senha} onChangeText={setSenha} />
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.button, loading && { opacity: 0.7 }]}
           onPress={handleCadastroDocente}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <View style={styles.btnContent}>
-              <Ionicons name="person-add-outline" size={20} color="#fff" />
+              <Ionicons name="person-add-outline" size={20} color={colors.onPrimary} />
               <Text style={styles.buttonText}>Confirmar Cadastro</Text>
             </View>
           )}
@@ -98,7 +98,7 @@ export default function CadastrarDocente() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flexGrow: 1, padding: 30 },
   backBtn: { marginTop: 40, marginBottom: 20, width: 40 },
   title: { fontSize: 32, fontWeight: "900" },
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   form: { width: "100%" },
   label: { fontSize: 14, fontWeight: "bold", marginBottom: 5, marginTop: 10 },
   input: { padding: 15, borderRadius: 12, borderWidth: 1, marginBottom: 15, fontSize: 15 },
-  button: { backgroundColor: "#10B981", padding: 18, borderRadius: 15, alignItems: "center", marginTop: 20, elevation: 2 },
+  button: { backgroundColor: c.success, padding: 18, borderRadius: 15, alignItems: "center", marginTop: 20, elevation: 2 },
   btnContent: { flexDirection: "row", alignItems: "center", gap: 8 },
-  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  buttonText: { color: c.onPrimary, fontWeight: "bold", fontSize: 16 },
 });

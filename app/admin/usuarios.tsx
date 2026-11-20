@@ -10,18 +10,18 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { supabase } from "../../src/services/supabase";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function ListaUsuarios() {
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -172,7 +172,7 @@ export default function ListaUsuarios() {
       {modoSelecao ? (
         <View style={[styles.header, { backgroundColor: colors.primary }]}>
           <TouchableOpacity onPress={handleCancelarSelecao} accessibilityRole="button" accessibilityLabel="Cancelar seleção">
-            <Ionicons name="close" size={24} color="#fff" />
+            <Ionicons name="close" size={24} color={colors.onPrimary} />
           </TouchableOpacity>
           <Text style={styles.title}>{selecionados.length} selecionado(s)</Text>
           <TouchableOpacity
@@ -181,17 +181,17 @@ export default function ListaUsuarios() {
             accessibilityRole="button"
             accessibilityLabel="Excluir selecionados"
           >
-            {excluindoLote ? <ActivityIndicator color="#fff" size="small" /> : <Ionicons name="trash-outline" size={24} color="#fff" />}
+            {excluindoLote ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Ionicons name="trash-outline" size={24} color={colors.onPrimary} />}
           </TouchableOpacity>
         </View>
       ) : (
         <View style={[styles.header, { backgroundColor: colors.primary }]}>
           <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color={colors.onPrimary} />
           </TouchableOpacity>
           <Text style={styles.title}>Monitorar Alunos</Text>
           <TouchableOpacity onPress={fetchUsers} accessibilityRole="button" accessibilityLabel="Atualizar lista">
-            <Ionicons name="refresh" size={24} color="#fff" />
+            <Ionicons name="refresh" size={24} color={colors.onPrimary} />
           </TouchableOpacity>
         </View>
       )}
@@ -218,7 +218,7 @@ export default function ListaUsuarios() {
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
       ) : usuariosFiltrados.length === 0 ? (
         <View style={{ alignItems: "center", marginTop: 50 }}>
-          <Ionicons name="search-outline" size={40} color="#CBD5E1" />
+          <Ionicons name="search-outline" size={40} color={colors.textMuted} />
           <Text style={{ color: colors.textLight, marginTop: 10 }}>Nenhum aluno encontrado.</Text>
         </View>
       ) : (
@@ -241,7 +241,7 @@ export default function ListaUsuarios() {
                 accessibilityLabel={modoSelecao ? (isSelected ? "Remover seleção do aluno" : "Selecionar aluno") : "Editar aluno"}
               >
                 {modoSelecao && (
-                  <Ionicons name={isSelected ? "checkbox" : "square-outline"} size={22} color={isSelected ? colors.primary : "#94A3B8"} />
+                  <Ionicons name={isSelected ? "checkbox" : "square-outline"} size={22} color={isSelected ? colors.primary : colors.textLight} />
                 )}
                 <Image
                   source={{ uri: item.avatar_url || `https://api.dicebear.com/7.x/avataaars/png?seed=${item.usuario}` }}
@@ -253,7 +253,7 @@ export default function ListaUsuarios() {
                 </View>
                 {!modoSelecao && (
                   <View style={[styles.editIcon, { backgroundColor: colors.primary }]}>
-                    <Ionicons name="pencil" size={16} color="#fff" />
+                    <Ionicons name="pencil" size={16} color={colors.onPrimary} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -304,7 +304,7 @@ export default function ListaUsuarios() {
 
             <Text style={[styles.label, { color: colors.text }]}>Instituição</Text>
             {instituicoes.length > 0 ? (
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.input, styles.pickerBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
                 onPress={() => setPickerVisible(true)}
               >
@@ -334,22 +334,22 @@ export default function ListaUsuarios() {
             />
 
             <View style={styles.footerRow}>
-              <TouchableOpacity
-                style={[styles.btn, { backgroundColor: "#FEE2E2" }]}
+              <TouchableOpacity accessibilityRole="button"
+                style={[styles.btn, { backgroundColor: colors.dangerSoft }]}
                 onPress={handleDelete}
               >
-                <Ionicons name="trash-outline" size={16} color="#DC2626" />
-                <Text style={{ color: "#DC2626", fontWeight: "bold" }}>Excluir</Text>
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                <Text style={{ color: colors.danger, fontWeight: "bold" }}>Excluir</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.btn, { backgroundColor: colors.primary }]}
                 onPress={handleUpdate}
                 disabled={updating}
               >
                 {updating ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={colors.onPrimary} size="small" />
                 ) : (
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>Salvar</Text>
+                  <Text style={{ color: colors.onPrimary, fontWeight: "bold" }}>Salvar</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -360,7 +360,7 @@ export default function ListaUsuarios() {
 
       {/* Picker de instituições */}
       <Modal visible={pickerVisible} transparent animationType="fade">
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={styles.pickerOverlay}
           activeOpacity={1}
           onPress={() => setPickerVisible(false)}
@@ -371,7 +371,7 @@ export default function ListaUsuarios() {
               data={[{ nome: "", sigla: "" }, ...instituicoes]}
               keyExtractor={(item, i) => item.nome || `_${i}`}
               renderItem={({ item }) => (
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={[
                     styles.pickerItem,
                     { borderBottomColor: colors.border },
@@ -396,7 +396,7 @@ export default function ListaUsuarios() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingTop: 60,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  title: { fontSize: 20, fontWeight: "bold", color: "#fff" },
+  title: { fontSize: 20, fontWeight: "bold", color: c.onPrimary },
   buscaRow: { flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginHorizontal: 20, marginTop: 14 },
   buscaInput: { flex: 1, fontSize: 14, padding: 0 },
   userCard: {
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   editIcon: { width: 28, height: 28, borderRadius: 14, justifyContent: "center", alignItems: "center" },
   userName: { fontSize: 16, fontWeight: "bold" },
   userSchool: { fontSize: 12 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)" },
+  modalOverlay: { flex: 1, backgroundColor: c.overlay },
   modalScrollContent: { flexGrow: 1, justifyContent: "center", padding: 20 },
   modalContent: { padding: 25, borderRadius: 28, elevation: 10 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   pickerBtn: { flexDirection: "row", alignItems: "center" },
   footerRow: { flexDirection: "row", gap: 12, marginTop: 24 },
   btn: { flex: 1, padding: 14, borderRadius: 15, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
-  pickerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  pickerOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: "flex-end" },
   pickerSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "55%" },
   pickerTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 14 },
   pickerItem: {

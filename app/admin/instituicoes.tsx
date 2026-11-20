@@ -6,18 +6,18 @@ import {
   FlatList,
   Modal,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useTheme } from "../../src/context/ThemeContext";
+import { Text, TextInput } from "../../components/AppText";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function GerenciarInstituicoes() {
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [instituicoes, setInstituicoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -123,18 +123,18 @@ export default function GerenciarInstituicoes() {
               autoCapitalize="characters"
             />
             <View style={{ flexDirection: "row", gap: 10 }}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.btn, { backgroundColor: colors.border }]}
                 onPress={() => { setModalVisible(false); setNome(""); setSigla(""); }}
               >
                 <Text style={{ color: colors.text }}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.btn, { backgroundColor: colors.primary }, salvando && { opacity: 0.7 }]}
                 onPress={handleSalvar}
                 disabled={salvando}
               >
-                {salvando ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: "#fff", fontWeight: "bold" }}>Salvar</Text>}
+                {salvando ? <ActivityIndicator color={colors.onPrimary} size="small" /> : <Text style={{ color: colors.onPrimary, fontWeight: "bold" }}>Salvar</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -150,7 +150,7 @@ export default function GerenciarInstituicoes() {
           contentContainerStyle={{ padding: 20 }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Ionicons name="school-outline" size={48} color="#CBD5E1" />
+              <Ionicons name="school-outline" size={48} color={colors.textMuted} />
               <Text style={[styles.emptyText, { color: colors.textLight }]}>Nenhuma instituição cadastrada.</Text>
             </View>
           }
@@ -168,7 +168,7 @@ export default function GerenciarInstituicoes() {
                 accessibilityRole="button"
                 accessibilityLabel={`Excluir instituição ${item.nome}`}
               >
-                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                <Ionicons name="trash-outline" size={18} color={colors.danger} />
               </TouchableOpacity>
             </View>
           )}
@@ -181,13 +181,13 @@ export default function GerenciarInstituicoes() {
         accessibilityRole="button"
         accessibilityLabel="Adicionar instituição"
       >
-        <Ionicons name="add" size={30} color="#fff" />
+        <Ionicons name="add" size={30} color={colors.onPrimary} />
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingTop: 60,
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   sigla: { fontWeight: "900", fontSize: 13 },
   nome: { flex: 1, fontSize: 14, fontWeight: "600" },
   deleteBtn: { padding: 6 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 },
+  modalOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: "center", padding: 20 },
   modalContent: { padding: 25, borderRadius: 20, gap: 12 },
   modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 4 },
   input: { borderWidth: 1, padding: 14, borderRadius: 12 },

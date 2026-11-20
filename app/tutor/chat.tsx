@@ -1,19 +1,20 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   FlatList,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from "react-native-reanimated";
 import MarkdownText from "../../components/MarkdownText";
 import { aiService } from "../../src/services/aiService";
-import { useTheme } from "../../src/context/ThemeContext";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import { SpeakButton } from "../../components/SpeakButton";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
 
@@ -25,6 +26,7 @@ interface Message {
 
 export default function TutorChat() {
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -63,6 +65,7 @@ export default function TutorChat() {
       const response = await aiService.askGemini(userPrompt, 1200);
       const aiMsg: Message = { id: gerarId(), text: response, from: "ai" };
       setMessages((prev) => [...prev, aiMsg]);
+      AccessibilityInfo.announceForAccessibility("OSIA respondeu.");
     } catch (error) {
       appAlert.alert("Erro", friendlyError(error, "OSIA não conseguiu responder agora. Tente novamente."));
     } finally {
@@ -72,17 +75,8 @@ export default function TutorChat() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Conversar com OSIA</Text>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Conversar com OSIA" />
 
       <Animated.View style={[styles.keyboardArea, keyboardStyle]}>
         <FlatList
@@ -98,13 +92,18 @@ export default function TutorChat() {
                 styles.bubble,
                 item.from === "user"
                   ? { alignSelf: "flex-end", backgroundColor: colors.primary, borderBottomRightRadius: 2 }
-                  : { alignSelf: "flex-start", backgroundColor: colors.card, borderBottomLeftRadius: 2, elevation: 1 },
+                  : { alignSelf: "flex-start", backgroundColor: colors.card, borderBottomLeftRadius: 2, borderWidth: 1, borderColor: colors.border },
               ]}
             >
               {item.from === "ai" ? (
-                <MarkdownText>{item.text}</MarkdownText>
+                <>
+                  <MarkdownText>{item.text}</MarkdownText>
+                  <View style={{ marginTop: 8 }}>
+                    <SpeakButton texto={item.text} rotulo="resposta da OSIA" compacto />
+                  </View>
+                </>
               ) : (
-                <Text style={[styles.msgText, { color: "#fff" }]}>{item.text}</Text>
+                <Text style={[styles.msgText, { color: colors.onPrimary }]}>{item.text}</Text>
               )}
             </View>
           )}
@@ -114,7 +113,10 @@ export default function TutorChat() {
           <TextInput
             style={[styles.input, { backgroundColor: colors.bg, color: colors.text }]}
             placeholder="Sua dúvida..."
-            placeholderTextColor={colors.textLight}
+            placeholderTextColor={colors.textMuted}
+            accessibilityLabel="Digite sua dúvida para a OSIA"
+            multiline
+            maxLength={1000}
             value={input}
             onChangeText={setInput}
             editable={!loading}
@@ -127,9 +129,9 @@ export default function TutorChat() {
             accessibilityLabel="Enviar mensagem"
           >
             {loading ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color={colors.onPrimary} size="small" />
             ) : (
-              <Ionicons name="send" size={20} color="#fff" />
+              <Ionicons name="send" size={20} color={colors.onPrimary} />
             )}
           </TouchableOpacity>
         </View>
@@ -138,17 +140,8 @@ export default function TutorChat() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    paddingTop: 60,
-    padding: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 15,
-    borderBottomWidth: 1,
-  },
-  title: { fontSize: 18, fontWeight: "bold" },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   keyboardArea: { flex: 1 },
   messagesList: { flex: 1 },
   bubble: { padding: 15, borderRadius: 20, marginBottom: 10, maxWidth: "85%" },
@@ -159,7 +152,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderTopWidth: 1,
   },
-  input: { flex: 1, borderRadius: 25, paddingHorizontal: 20, height: 50 },
+  input: { flex: 1, borderRadius: 25, paddingHorizontal: 20, paddingVertical: 12, minHeight: 50, maxHeight: 140, borderWidth: 1, borderColor: c.border },
   sendBtn: {
     width: 50,
     height: 50,

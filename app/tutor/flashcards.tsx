@@ -9,18 +9,21 @@ import {
   Image,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/AppText";
 import ViewShot from "react-native-view-shot";
-import { useTheme } from "../../src/context/ThemeContext";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import { SpeakButton } from "../../components/SpeakButton";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function FlashcardGenerator() {
   const { dados, titulo } = useLocalSearchParams();
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [loading, setLoading] = useState(false);
   const cardsRef = useRef<(ViewShot | null)[]>([]);
   const baixandoRef = useRef(false);
@@ -83,17 +86,8 @@ export default function FlashcardGenerator() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { backgroundColor: colors.card }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Flashcards de Revisão</Text>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Flashcards de Revisão" />
 
       <ScrollView contentContainerStyle={{ padding: 20 }}>
         <View style={[styles.infoBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -103,16 +97,20 @@ export default function FlashcardGenerator() {
         </View>
 
         {questoes.map((item: any, index: number) => (
+          <View key={index} style={styles.cardBloco}>
           <ViewShot
-            key={index}
             ref={(ref) => { cardsRef.current[index] = ref; }}
             options={{ format: "png", quality: 0.9 }}
             style={styles.cardWrapper}
           >
-            <View style={[styles.card, { backgroundColor: colors.card }]}>
+            <View
+              style={[styles.card, { backgroundColor: colors.card }]}
+              accessible
+              accessibilityLabel={`Flashcard ${index + 1} de ${questoes.length}. Conceito: ${item.enunciado}. Justificativa: ${item.justificativa}`}
+            >
               <View style={styles.cardHeader}>
                 <View style={[styles.tagIA, { backgroundColor: colors.primary }]}>
-                  <MaterialCommunityIcons name="robot" size={12} color="#fff" />
+                  <MaterialCommunityIcons name="robot" size={12} color={colors.onPrimary} />
                   <Text style={styles.tagIAText}>OSINHO</Text>
                 </View>
                 <Text style={[styles.refText, { color: colors.textLight }]}>
@@ -127,6 +125,7 @@ export default function FlashcardGenerator() {
                   source={{ uri: item.imagem_url }}
                   style={styles.cardImagem}
                   resizeMode="contain"
+                  accessibilityIgnoresInvertColors
                 />
               )}
 
@@ -141,18 +140,26 @@ export default function FlashcardGenerator() {
               </View>
             </View>
           </ViewShot>
+          {/* Fora do ViewShot para não aparecer no PNG exportado */}
+          <SpeakButton
+            texto={`Conceito: ${item.enunciado}. Justificativa: ${item.justificativa}`}
+            rotulo={`flashcard ${index + 1}`}
+          />
+          </View>
         ))}
 
         <TouchableOpacity
           style={[styles.downloadBtn, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]}
           onPress={baixarFlashcards}
           disabled={loading}
+          accessibilityRole="button"
+          accessibilityState={{ busy: loading }}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <>
-              <Ionicons name="download-outline" size={24} color="#fff" />
+              <Ionicons name="download-outline" size={24} color={colors.onPrimary} />
               <Text style={styles.downloadBtnText}>Baixar Flashcards (.ZIP)</Text>
             </>
           )}
@@ -162,20 +169,12 @@ export default function FlashcardGenerator() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    paddingTop: 60,
-    padding: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 15,
-  },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
+  cardBloco: { marginBottom: 24, gap: 10 },
   infoBox: { padding: 15, borderRadius: 12, marginBottom: 20, borderWidth: 1 },
   subtitle: { fontSize: 13, lineHeight: 20 },
   cardWrapper: {
-    marginBottom: 20,
     borderRadius: 20,
     elevation: 4,
     shadowColor: "#000",
@@ -188,6 +187,8 @@ const styles = StyleSheet.create({
     width: "100%",
     minHeight: 320,
     justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: c.border,
   },
   cardHeader: {
     flexDirection: "row",
@@ -203,11 +204,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-  tagIAText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
-  refText: { fontSize: 10, fontWeight: "600" },
-  label: { fontSize: 9, fontWeight: "900", letterSpacing: 1, marginBottom: 8 },
+  tagIAText: { color: c.onPrimary, fontSize: 11, fontWeight: "bold" },
+  refText: { fontSize: 11, fontWeight: "600", flexShrink: 1, textAlign: "right", marginLeft: 8 },
+  label: { fontSize: 11, fontWeight: "900", letterSpacing: 1, marginBottom: 8 },
   enunciado: { fontSize: 16, fontWeight: "bold", marginBottom: 15 },
-  cardImagem: { width: "100%", height: 140, borderRadius: 12, marginBottom: 15, backgroundColor: "#E2E8F0" },
+  cardImagem: { width: "100%", height: 140, borderRadius: 12, marginBottom: 15, backgroundColor: c.surfaceAlt },
   divider: { height: 1, marginVertical: 10 },
   justificativa: { fontSize: 14, lineHeight: 22 },
   cardFooter: {
@@ -217,8 +218,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingTop: 10,
   },
-  footerBrand: { fontSize: 8, color: "#CBD5E1", fontWeight: "bold" },
-  pageText: { fontSize: 9, color: "#94A3B8" },
+  footerBrand: { fontSize: 10, color: c.textLight, fontWeight: "bold" },
+  pageText: { fontSize: 11, color: c.textLight },
   downloadBtn: {
     padding: 20,
     borderRadius: 16,
@@ -229,5 +230,5 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 60,
   },
-  downloadBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  downloadBtnText: { color: c.onPrimary, fontSize: 16, fontWeight: "bold" },
 });

@@ -1,8 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useTheme } from "../src/context/ThemeContext";
+import { Modal, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "./AppText";
+import { useTheme, useThemedStyles, type ThemeColors } from "../src/context/ThemeContext";
 
 const ONBOARDING_KEY = "@osi_onboarding_seen";
 
@@ -26,6 +27,7 @@ const SLIDES: { icon: keyof typeof Ionicons.glyphMap; title: string; texto: stri
 
 export function OnboardingModal() {
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState(0);
 
@@ -65,7 +67,7 @@ export function OnboardingModal() {
           </TouchableOpacity>
 
           <View style={[styles.iconBox, { backgroundColor: colors.primary }]}>
-            <Ionicons name={slide.icon} size={40} color="#fff" />
+            <Ionicons name={slide.icon} size={40} color={colors.onPrimary} />
           </View>
 
           <Text style={[styles.title, { color: colors.text }]}>{slide.title}</Text>
@@ -94,8 +96,8 @@ export function OnboardingModal() {
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", padding: 24 },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: c.overlay, justifyContent: "center", alignItems: "center", padding: 24 },
   card: { width: "100%", maxWidth: 360, borderRadius: 28, padding: 28, alignItems: "center" },
   skipBtn: { position: "absolute", top: 16, right: 20, padding: 4 },
   skipText: { fontSize: 13, fontWeight: "600" },
@@ -105,5 +107,5 @@ const styles = StyleSheet.create({
   dotsRow: { flexDirection: "row", gap: 8, marginBottom: 24 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   nextBtn: { width: "100%", padding: 16, borderRadius: 16, alignItems: "center" },
-  nextBtnText: { color: "#fff", fontWeight: "bold", fontSize: 15 },
+  nextBtnText: { color: c.onPrimary, fontWeight: "bold", fontSize: 15 },
 });

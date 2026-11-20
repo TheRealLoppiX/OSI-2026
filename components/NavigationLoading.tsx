@@ -1,6 +1,8 @@
 import { MotiView } from "moti";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
+import { Text } from "./AppText";
+import { useAccessibility } from "../src/context/AccessibilityContext";
 import { Colors } from "../src/styles/colors";
 
 interface Props {
@@ -9,6 +11,7 @@ interface Props {
 
 export function NavigationLoading({ visible }: Props) {
   const [internalVisible, setInternalVisible] = useState(false);
+  const { motionReduced } = useAccessibility();
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const fakeProgressRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -62,9 +65,16 @@ export function NavigationLoading({ visible }: Props) {
   });
 
   return (
-    <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
-      {/* Anéis expansivos escalonados */}
-      {[0, 1, 2].map((i) => (
+    <Animated.View
+      style={[styles.overlay, { opacity: overlayOpacity }]}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Carregando"
+      accessibilityLiveRegion="polite"
+      accessibilityViewIsModal
+    >
+      {/* Anéis expansivos escalonados (em loop: some com "reduzir animações") */}
+      {!motionReduced && [0, 1, 2].map((i) => (
         <MotiView
           key={i}
           from={{ scale: 0.5, opacity: 0.5 }}

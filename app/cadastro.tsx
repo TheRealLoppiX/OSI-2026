@@ -9,16 +9,16 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import type { TextInput as RNTextInput } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { authService } from "../src/services/auth";
 import { supabase } from "../src/services/supabase";
 import { useAuth } from "../src/context/AuthContext";
 import { useNavigationLoading, usePageReady } from "../src/context/NavigationLoadingContext";
-import { useTheme } from "../src/context/ThemeContext";
+import { useTheme, useThemedStyles, type ThemeColors } from "../src/context/ThemeContext";
 import { cadastroSchema } from "../src/schemas/authSchema";
 import { appAlert } from "../src/services/appAlert";
 import { friendlyError } from "../src/utils/friendlyError";
@@ -29,6 +29,7 @@ export default function Cadastro() {
   usePageReady();
   const { startNavigation } = useNavigationLoading();
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { setUsuario: setUsuarioLogado } = useAuth();
 
   const [step, setStep] = useState<Step>("form");
@@ -44,7 +45,7 @@ export default function Cadastro() {
   const [instituicoes, setInstituicoes] = useState<any[]>([]);
   const [pickerVisible, setPickerVisible] = useState(false);
 
-  const otpRef = useRef<TextInput>(null);
+  const otpRef = useRef<RNTextInput>(null);
 
   useEffect(() => {
     supabase
@@ -175,19 +176,19 @@ export default function Cadastro() {
               textAlign="center"
             />
 
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={[styles.button, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]}
               onPress={handleVerificarOtp}
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={colors.onPrimary} />
               ) : (
                 <Text style={styles.buttonText}>Criar Conta</Text>
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.resendBtn} onPress={handleReenviar}>
+            <TouchableOpacity accessibilityRole="button" style={styles.resendBtn} onPress={handleReenviar}>
               <Text style={[styles.resendText, { color: colors.textLight }]}>
                 Não recebeu?{" "}
                 <Text style={{ color: colors.primary, fontWeight: "bold" }}>Reenviar código</Text>
@@ -255,7 +256,7 @@ export default function Cadastro() {
           <Text style={[styles.label, { color: colors.text }]}>Instituição / Escola</Text>
           {instituicoes.length > 0 ? (
             <>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[inputStyle, styles.pickerBtn]}
                 onPress={() => setPickerVisible(true)}
               >
@@ -266,7 +267,7 @@ export default function Cadastro() {
               </TouchableOpacity>
 
               <Modal visible={pickerVisible} transparent animationType="fade">
-                <TouchableOpacity
+                <TouchableOpacity accessibilityRole="button"
                   style={styles.pickerOverlay}
                   activeOpacity={1}
                   onPress={() => setPickerVisible(false)}
@@ -277,7 +278,7 @@ export default function Cadastro() {
                       data={instituicoes}
                       keyExtractor={(item) => item.nome}
                       renderItem={({ item }) => (
-                        <TouchableOpacity
+                        <TouchableOpacity accessibilityRole="button"
                           style={[
                             styles.pickerItem,
                             { borderBottomColor: colors.border },
@@ -339,17 +340,17 @@ export default function Cadastro() {
             onChangeText={setConfirmarSenha}
           />
 
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[styles.button, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]}
             onPress={handleEnviarCodigo}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.onPrimary} />
             ) : (
               <>
                 <Text style={styles.buttonText}>Enviar Código de Verificação</Text>
-                <Ionicons name="mail-outline" size={18} color="#fff" />
+                <Ionicons name="mail-outline" size={18} color={colors.onPrimary} />
               </>
             )}
           </TouchableOpacity>
@@ -363,7 +364,7 @@ export default function Cadastro() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { flexGrow: 1, padding: 30 },
   backBtn: { marginTop: 40, marginBottom: 20 },
@@ -389,7 +390,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 24,
   },
-  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  buttonText: { color: c.onPrimary, fontWeight: "bold", fontSize: 16 },
   disclaimer: { fontSize: 12, textAlign: "center", marginTop: 16, lineHeight: 18 },
   otpHeader: { alignItems: "center", marginBottom: 36, marginTop: 20 },
   otpIconBox: {
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
   resendBtn: { marginTop: 20, alignItems: "center" },
   resendText: { fontSize: 14 },
   pickerBtn: { flexDirection: "row", alignItems: "center" },
-  pickerOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  pickerOverlay: { flex: 1, backgroundColor: c.overlay, justifyContent: "flex-end" },
   pickerSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, maxHeight: "60%" },
   pickerTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 14 },
   pickerItem: {

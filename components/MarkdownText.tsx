@@ -1,5 +1,6 @@
 import React from "react";
-import { Linking, ScrollView, StyleSheet, Text, TextStyle, View } from "react-native";
+import { Linking, ScrollView, StyleSheet, TextStyle, View } from "react-native";
+import { Text } from "./AppText";
 import { useTheme } from "../src/context/ThemeContext";
 
 // Renderizador mínimo de Markdown para as respostas da OSIA. Cobre só o que o
@@ -167,12 +168,12 @@ type Props = {
 };
 
 export default function MarkdownText({ children, color, style }: Props) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const cor = color ?? colors.text;
   const e: Estilos = {
     cor,
-    corCodigo: isDark ? "#E2E8F0" : "#0F172A",
-    fundoCodigo: isDark ? "rgba(15,23,42,0.6)" : "rgba(15,23,42,0.07)",
+    corCodigo: colors.text,
+    fundoCodigo: colors.surfaceAlt,
     corLink: color ? cor : colors.primary,
   };
   const base: TextStyle = { color: cor, fontSize: 15, lineHeight: 22, ...style };

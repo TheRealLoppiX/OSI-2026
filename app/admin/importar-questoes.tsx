@@ -8,12 +8,11 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useTheme } from "../../src/context/ThemeContext";
+import { Text, TextInput } from "../../components/AppText";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { useAuth } from "../../src/context/AuthContext";
 import { supabase } from "../../src/services/supabase";
 import { appAlert } from "../../src/services/appAlert";
@@ -52,6 +51,7 @@ function csvEscape(valor: any): string {
 
 export default function ImportarQuestoes() {
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { usuario } = useAuth();
   const [modo, setModo] = useState<Modo>("url");
   const [url, setUrl] = useState("");
@@ -236,28 +236,28 @@ export default function ImportarQuestoes() {
 
       {/* Toggle de modo */}
       <View style={[styles.toggleRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.toggleBtn, modo === "url" && { backgroundColor: colors.primary }]}
           onPress={() => trocarModo("url")}
         >
-          <Ionicons name="link-outline" size={15} color={modo === "url" ? "#fff" : colors.textLight} />
-          <Text style={[styles.toggleText, { color: modo === "url" ? "#fff" : colors.textLight }]}>
+          <Ionicons name="link-outline" size={15} color={modo === "url" ? colors.onPrimary : colors.textLight} />
+          <Text style={[styles.toggleText, { color: modo === "url" ? colors.onPrimary : colors.textLight }]}>
             Google Sheets
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.toggleBtn, modo === "xlsx" && { backgroundColor: colors.primary }]}
           onPress={() => trocarModo("xlsx")}
         >
-          <Ionicons name="document-outline" size={15} color={modo === "xlsx" ? "#fff" : colors.textLight} />
-          <Text style={[styles.toggleText, { color: modo === "xlsx" ? "#fff" : colors.textLight }]}>
+          <Ionicons name="document-outline" size={15} color={modo === "xlsx" ? colors.onPrimary : colors.textLight} />
+          <Text style={[styles.toggleText, { color: modo === "xlsx" ? colors.onPrimary : colors.textLight }]}>
             Arquivo .xlsx
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Card de instruções */}
-      <View style={[styles.infoCard, { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" }]}>
+      <View style={[styles.infoCard, { backgroundColor: colors.infoSoft, borderColor: colors.info }]}>
         <View style={styles.infoHeader}>
           <Ionicons name="information-circle" size={20} color={colors.primary} />
           <Text style={[styles.infoTitle, { color: colors.primary }]}>
@@ -325,7 +325,7 @@ export default function ImportarQuestoes() {
             autoCorrect={false}
             multiline
           />
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[
               styles.btnPreview,
               { borderColor: colors.primary, backgroundColor: colors.card },
@@ -347,7 +347,7 @@ export default function ImportarQuestoes() {
           </TouchableOpacity>
         </>
       ) : (
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[
             styles.btnXlsx,
             { borderColor: colors.primary, backgroundColor: colors.card },
@@ -383,7 +383,7 @@ export default function ImportarQuestoes() {
             <Text style={[styles.previewTitle, { color: colors.text }]}>
               {preview.length} questões encontradas
             </Text>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={[
                 styles.btnImportar,
                 { backgroundColor: colors.primary },
@@ -393,10 +393,10 @@ export default function ImportarQuestoes() {
               disabled={importando}
             >
               {importando ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator color={colors.onPrimary} size="small" />
               ) : (
                 <>
-                  <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
+                  <Ionicons name="cloud-upload-outline" size={16} color={colors.onPrimary} />
                   <Text style={styles.btnImportarText}>Importar tudo</Text>
                 </>
               )}
@@ -416,7 +416,7 @@ export default function ImportarQuestoes() {
                   #{i + 1}
                 </Text>
                 {q.duplicata && (
-                  <Text style={[styles.questaoTag, { backgroundColor: "#FEF9C3", color: "#92400E" }]}>
+                  <Text style={[styles.questaoTag, { backgroundColor: colors.warningSoft, color: colors.warning }]}>
                     já existe
                   </Text>
                 )}
@@ -427,12 +427,12 @@ export default function ImportarQuestoes() {
                   style={[
                     styles.questaoTag,
                     q.dificuldade === "Fácil" && {
-                      backgroundColor: "#DCFCE7",
-                      color: "#166534",
+                      backgroundColor: colors.successSoft,
+                      color: colors.success,
                     },
                     q.dificuldade === "Difícil" && {
-                      backgroundColor: "#FEE2E2",
-                      color: "#991B1B",
+                      backgroundColor: colors.dangerSoft,
+                      color: colors.danger,
                     },
                   ]}
                 >
@@ -454,13 +454,13 @@ export default function ImportarQuestoes() {
                       key={l}
                       style={[
                         styles.opcaoChip,
-                        isCorreta && { backgroundColor: "#10B981" },
+                        isCorreta && { backgroundColor: colors.success },
                       ]}
                     >
                       <Text
                         style={[
                           styles.opcaoChipText,
-                          isCorreta && { color: "#fff" },
+                          isCorreta && { color: colors.onPrimary },
                         ]}
                       >
                         {l.toUpperCase()}
@@ -477,7 +477,7 @@ export default function ImportarQuestoes() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingTop: 60,
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   infoTitle: { fontSize: 15, fontWeight: "bold" },
   infoText: {
     fontSize: 13,
-    color: "#1E40AF",
+    color: c.info,
     lineHeight: 20,
     marginBottom: 14,
   },
@@ -527,14 +527,14 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 6,
-    color: "#fff",
+    color: c.onPrimary,
     fontSize: 12,
     fontWeight: "bold",
     textAlign: "center",
     lineHeight: 24,
   },
-  colunaLabel: { flex: 1, fontSize: 12, color: "#1E3A5F" },
-  obrig: { fontSize: 10, color: "#3B82F6", fontWeight: "600" },
+  colunaLabel: { flex: 1, fontSize: 12, color: c.text },
+  obrig: { fontSize: 10, color: c.info, fontWeight: "600" },
   label: {
     fontSize: 14,
     fontWeight: "bold",
@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
   },
-  btnImportarText: { color: "#fff", fontWeight: "bold", fontSize: 13 },
+  btnImportarText: { color: c.onPrimary, fontWeight: "bold", fontSize: 13 },
   questaoCard: {
     borderRadius: 14,
     padding: 14,
@@ -605,8 +605,8 @@ const styles = StyleSheet.create({
   questaoTag: {
     fontSize: 10,
     fontWeight: "600",
-    backgroundColor: "#F1F5F9",
-    color: "#64748B",
+    backgroundColor: c.surfaceAlt,
+    color: c.textLight,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -617,9 +617,9 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: c.surfaceAlt,
     justifyContent: "center",
     alignItems: "center",
   },
-  opcaoChipText: { fontSize: 12, fontWeight: "bold", color: "#64748B" },
+  opcaoChipText: { fontSize: 12, fontWeight: "bold", color: c.textLight },
 });

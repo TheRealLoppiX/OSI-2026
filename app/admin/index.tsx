@@ -4,23 +4,22 @@ import React, { useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/AppText";
 import { useAuth } from "../../src/context/AuthContext";
 import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { authService } from "../../src/services/auth";
 import { supabase } from "../../src/services/supabase";
 import { appAlert } from "../../src/services/appAlert";
 
-const SECONDARY = "#DC2626";
-const ACCENT = "#FBBF24";
 
 export default function AdminDashboard() {
   const { pageReady } = useNavigationLoading();
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { setUsuario } = useAuth();
   const [stats, setStats] = useState({ alunos: 0, simulados: 0, questoes: 0 });
   const [loading, setLoading] = useState(true);
@@ -87,8 +86,8 @@ export default function AdminDashboard() {
           accessibilityRole="button"
           accessibilityLabel="Sair da sessão administrativa"
         >
-          <Ionicons name="log-out-outline" size={26} color={SECONDARY} />
-          <Text style={[styles.logoutText, { color: SECONDARY }]}>SAIR</Text>
+          <Ionicons name="log-out-outline" size={26} color={colors.danger} />
+          <Text style={[styles.logoutText, { color: colors.danger }]}>SAIR</Text>
         </TouchableOpacity>
 
         <Text style={[styles.title, { color: colors.text }]}>
@@ -133,9 +132,16 @@ export default function AdminDashboard() {
 
           {[
             {
+              route: "/admin/analytics",
+              icon: "stats-chart",
+              color: colors.info,
+              title: "Analytics",
+              sub: "Desempenho e engajamento dos alunos",
+            },
+            {
               route: "/admin/cadastrar-docente",
               icon: "person-add",
-              color: "#10B981",
+              color: colors.success,
               title: "Cadastrar Docente",
               sub: "Adicionar novo administrador à OSI",
             },
@@ -149,32 +155,41 @@ export default function AdminDashboard() {
             {
               route: "/admin/instituicoes",
               icon: "school",
-              color: "#7C3AED",
+              color: colors.highlight,
               title: "Instituições",
               sub: "Gerenciar Instituições",
             },
             {
               route: "/admin/notificar",
               icon: "megaphone",
-              color: ACCENT,
+              color: colors.warning,
               title: "Enviar Notificação",
               sub: "Disparar alerta para os alunos",
             },
             {
               route: "/admin/usuarios",
               icon: "list",
-              color: SECONDARY,
+              color: colors.danger,
               title: "Lista de Inscritos",
               sub: "Ver e monitorar alunos",
+            },
+            {
+              route: "/configuracoes",
+              icon: "accessibility",
+              color: colors.textLight,
+              title: "Aparência e acessibilidade",
+              sub: "Tema, tamanho do texto e leitura",
             },
           ].map((item) => (
             <TouchableOpacity
               key={item.route}
               style={[styles.menuItem, { backgroundColor: colors.card }]}
               onPress={() => router.push(item.route as any)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.title}. ${item.sub}`}
             >
               <View style={[styles.iconBox, { backgroundColor: item.color }]}>
-                <Ionicons name={item.icon as any} size={22} color="#fff" />
+                <Ionicons name={item.icon as any} size={22} color={colors.onPrimary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.menuText, { color: colors.text }]}>
@@ -197,7 +212,7 @@ export default function AdminDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingTop: 60,

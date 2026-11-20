@@ -4,13 +4,12 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { useAuth } from "../src/context/AuthContext";
-import { useTheme } from "../src/context/ThemeContext";
+import { useTheme, useThemedStyles, type ThemeColors } from "../src/context/ThemeContext";
 import { authService } from "../src/services/auth";
 import { useNavigationLoading, usePageReady } from "../src/context/NavigationLoadingContext";
 import { appAlert } from "../src/services/appAlert";
@@ -19,7 +18,8 @@ import { friendlyError } from "../src/utils/friendlyError";
 export default function Login() {
   usePageReady();
   const { startNavigation } = useNavigationLoading();
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { colors, isDark, setPreference } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { setUsuario } = useAuth();
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
@@ -48,18 +48,28 @@ export default function Login() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <TouchableOpacity
-        style={styles.themeBtn}
-        onPress={toggleTheme}
-        accessibilityRole="button"
-        accessibilityLabel={isDark ? "Ativar tema claro" : "Ativar tema escuro"}
-      >
-        <Ionicons
-          name={isDark ? "sunny-outline" : "moon-outline"}
-          size={24}
-          color={colors.textLight}
-        />
-      </TouchableOpacity>
+      <View style={styles.themeBtn}>
+        <TouchableOpacity
+          onPress={() => router.push("/configuracoes" as any)}
+          style={styles.topoBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Aparência e acessibilidade"
+        >
+          <Ionicons name="accessibility-outline" size={24} color={colors.textLight} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setPreference(isDark ? "claro" : "escuro")}
+          style={styles.topoBtn}
+          accessibilityRole="button"
+          accessibilityLabel={isDark ? "Ativar tema claro" : "Ativar tema escuro"}
+        >
+          <Ionicons
+            name={isDark ? "sunny-outline" : "moon-outline"}
+            size={24}
+            color={colors.textLight}
+          />
+        </TouchableOpacity>
+      </View>
 
       <Text style={[styles.logo, { color: colors.primary }]}>OSI 2026</Text>
 
@@ -95,19 +105,19 @@ export default function Login() {
         onChangeText={setPassword}
       />
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={[styles.button, { backgroundColor: colors.primary }]}
         onPress={handleLogin}
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.onPrimary} />
         ) : (
           <Text style={styles.buttonText}>Entrar</Text>
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
+      <TouchableOpacity accessibilityRole="button"
         style={styles.signupBtn}
         onPress={() => router.push("/cadastro")}
       >
@@ -122,9 +132,10 @@ export default function Login() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1, justifyContent: "center", padding: 30 },
-  themeBtn: { position: "absolute", top: 60, right: 30 },
+  themeBtn: { position: "absolute", top: 50, right: 20, flexDirection: "row", gap: 4 },
+  topoBtn: { width: 44, height: 44, justifyContent: "center", alignItems: "center" },
   logo: {
     fontSize: 48,
     fontWeight: "900",
@@ -144,7 +155,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     elevation: 3,
   },
-  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  buttonText: { color: c.onPrimary, fontWeight: "bold", fontSize: 16 },
   signupBtn: { marginTop: 25, alignItems: "center" },
   signupText: { fontSize: 14 },
 });

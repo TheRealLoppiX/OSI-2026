@@ -3,15 +3,17 @@ import { Buffer } from "buffer";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { supabase } from "../../src/services/supabase";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function CadastrarQuestao() {
   const { simuladoId, questaoId, questaoData } = useLocalSearchParams();
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const modoEdicao = !!questaoId;
 
   // Pré-popula o formulário quando for edição
@@ -134,12 +136,12 @@ export default function CadastrarQuestao() {
         <Text style={[styles.label, { color: colors.text }]}>Nível de Dificuldade</Text>
         <View style={styles.difficultyContainer}>
           {["Fácil", "Média", "Difícil"].map((nivel) => (
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               key={nivel}
               style={[styles.diffBtn, { borderColor: colors.primary }, dificuldade === nivel && { backgroundColor: colors.primary }]}
               onPress={() => setDificuldade(nivel)}
             >
-              <Text style={[styles.diffBtnText, { color: colors.primary }, dificuldade === nivel && { color: "#fff" }]}>
+              <Text style={[styles.diffBtnText, { color: colors.primary }, dificuldade === nivel && { color: colors.onPrimary }]}>
                 {nivel}
               </Text>
             </TouchableOpacity>
@@ -157,7 +159,7 @@ export default function CadastrarQuestao() {
           <View style={styles.imagemPreviewBox}>
             <Image source={{ uri: imagemUrl }} style={styles.imagemPreview} resizeMode="contain" />
             <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-              <TouchableOpacity
+              <TouchableOpacity accessibilityRole="button"
                 style={[styles.imagemBtn, { borderColor: colors.primary }]}
                 onPress={handleSelecionarImagem}
                 disabled={uploadingImagem}
@@ -165,18 +167,18 @@ export default function CadastrarQuestao() {
                 <Ionicons name="image-outline" size={16} color={colors.primary} />
                 <Text style={[styles.imagemBtnText, { color: colors.primary }]}>Trocar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.imagemBtn, { borderColor: "#EF4444" }]}
+              <TouchableOpacity accessibilityRole="button"
+                style={[styles.imagemBtn, { borderColor: colors.danger }]}
                 onPress={() => setImagemUrl(null)}
                 disabled={uploadingImagem}
               >
-                <Ionicons name="trash-outline" size={16} color="#EF4444" />
-                <Text style={[styles.imagemBtnText, { color: "#EF4444" }]}>Remover</Text>
+                <Ionicons name="trash-outline" size={16} color={colors.danger} />
+                <Text style={[styles.imagemBtnText, { color: colors.danger }]}>Remover</Text>
               </TouchableOpacity>
             </View>
           </View>
         ) : (
-          <TouchableOpacity
+          <TouchableOpacity accessibilityRole="button"
             style={[styles.imagemUploadBtn, { borderColor: colors.border, backgroundColor: colors.inputBg }]}
             onPress={handleSelecionarImagem}
             disabled={uploadingImagem}
@@ -195,11 +197,11 @@ export default function CadastrarQuestao() {
         <Text style={[styles.label, { color: colors.text }]}>Alternativas (Marque a correta no círculo)</Text>
         {(["A", "B", "C", "D", "E"] as const).map((letra) => (
           <View key={letra} style={styles.optionRow}>
-            <TouchableOpacity
+            <TouchableOpacity accessibilityRole="button"
               style={[styles.radio, { borderColor: colors.border, backgroundColor: colors.inputBg }, correta === letra && { backgroundColor: colors.primary, borderColor: colors.primary }]}
               onPress={() => setCorreta(letra)}
             >
-              <Text style={{ color: correta === letra ? "#fff" : colors.text, fontWeight: "bold" }}>{letra}</Text>
+              <Text style={{ color: correta === letra ? colors.onPrimary : colors.text, fontWeight: "bold" }}>{letra}</Text>
             </TouchableOpacity>
             <TextInput
               style={[styles.optionInput, { backgroundColor: colors.inputBg, borderColor: colors.border, color: colors.text, flex: 1 }]}
@@ -217,7 +219,7 @@ export default function CadastrarQuestao() {
         <Text style={[styles.label, { color: colors.text }]}>Referência Bibliográfica</Text>
         <TextInput style={inputStyle} placeholder="Ex: TANENBAUM, Redes de Computadores, 5ª Ed." placeholderTextColor={colors.textLight} value={referencia} onChangeText={setReferencia} />
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.btnSave, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]}
           onPress={salvarQuestao}
           disabled={loading}
@@ -231,7 +233,7 @@ export default function CadastrarQuestao() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: { paddingTop: 60, padding: 25, flexDirection: "row", alignItems: "center", gap: 15 },
   title: { fontSize: 18, fontWeight: "bold" },
@@ -253,7 +255,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   imagemPreviewBox: { marginBottom: 15 },
-  imagemPreview: { width: "100%", height: 180, borderRadius: 12, backgroundColor: "#E2E8F0" },
+  imagemPreview: { width: "100%", height: 180, borderRadius: 12, backgroundColor: c.surfaceAlt },
   imagemBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -268,5 +270,5 @@ const styles = StyleSheet.create({
   radio: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, justifyContent: "center", alignItems: "center" },
   optionInput: { padding: 10, borderRadius: 10, borderWidth: 1 },
   btnSave: { padding: 18, borderRadius: 15, alignItems: "center", marginTop: 30, marginBottom: 50 },
-  btnSaveText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  btnSaveText: { color: c.onPrimary, fontWeight: "bold", fontSize: 16 },
 });

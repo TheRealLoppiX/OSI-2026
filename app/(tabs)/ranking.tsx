@@ -1,19 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Text } from "../../components/AppText";
 import { authService } from "../../src/services/auth";
 import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
-import { useTheme } from "../../src/context/ThemeContext";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
+
+// Cores de medalha são fixas em todos os temas; o número da posição vai junto
+// porque cor sozinha não pode ser a única forma de distinguir 1º/2º/3º
+const MEDALHAS = ["#FFD700", "#C0C0C0", "#CD7F32"];
 import { supabase } from "../../src/services/supabase";
 
 // Fallback usado apenas se a instituição não estiver cadastrada na tabela "instituicoes"
@@ -31,6 +34,7 @@ function siglaFallback(nome: string): string {
 export default function RankingCompleto() {
   const { pageReady } = useNavigationLoading();
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [ranking, setRanking] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -89,9 +93,14 @@ export default function RankingCompleto() {
   }, []);
 
   const renderPodiumIcon = (index: number) => {
-    if (index === 0) return <Ionicons name="trophy" size={24} color="#FFD700" />;
-    if (index === 1) return <Ionicons name="trophy" size={24} color="#C0C0C0" />;
-    if (index === 2) return <Ionicons name="trophy" size={24} color="#CD7F32" />;
+    if (index < 3) {
+      return (
+        <View style={styles.medalha}>
+          <Ionicons name="trophy" size={22} color={MEDALHAS[index]} />
+          <Text style={styles.medalhaNumero}>{index + 1}º</Text>
+        </View>
+      );
+    }
     return <Text style={[styles.positionText, { color: colors.textLight }]}>#{index + 1}</Text>;
   };
 
@@ -104,29 +113,26 @@ export default function RankingCompleto() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* HEADER */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Voltar">
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Leaderboard OSI 2026</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Ranking OSI 2026" showBack={false} />
 
       {/* TABS */}
-      <View style={[styles.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <View style={[styles.tabRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]} accessibilityRole="tablist">
         <TouchableOpacity
-          style={[styles.tabBtn, aba === "individual" && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          style={[styles.tabBtn, aba === "individual" && { borderBottomColor: colors.primary, borderBottomWidth: 3 }]}
           onPress={() => setAba("individual")}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: aba === "individual" }}
         >
           <Text style={[styles.tabText, { color: aba === "individual" ? colors.primary : colors.textLight }]}>
             Individual
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tabBtn, aba === "instituicao" && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+          style={[styles.tabBtn, aba === "instituicao" && { borderBottomColor: colors.primary, borderBottomWidth: 3 }]}
           onPress={() => setAba("instituicao")}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: aba === "instituicao" }}
         >
           <Text style={[styles.tabText, { color: aba === "instituicao" ? colors.primary : colors.textLight }]}>
             Por Instituição
@@ -140,14 +146,13 @@ export default function RankingCompleto() {
           keyExtractor={(item) => item.nome}
           contentContainerStyle={{ padding: 20 }}
           renderItem={({ item }) => (
-            <View style={[styles.rankItem, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View
+              style={[styles.rankItem, { backgroundColor: colors.card, borderColor: colors.border }]}
+              accessible
+              accessibilityLabel={`${item.pos}º lugar, ${item.nome}, ${item.total} XP`}
+            >
               <View style={styles.rankLeft}>
-                <View style={styles.podiumContainer}>
-                  {item.pos === 1 ? <Ionicons name="trophy" size={24} color="#FFD700" /> :
-                   item.pos === 2 ? <Ionicons name="trophy" size={24} color="#C0C0C0" /> :
-                   item.pos === 3 ? <Ionicons name="trophy" size={24} color="#CD7F32" /> :
-                   <Text style={[styles.positionText, { color: colors.textLight }]}>#{item.pos}</Text>}
-                </View>
+                <View style={styles.podiumContainer}>{renderPodiumIcon(item.pos - 1)}</View>
                 <View style={[styles.instIconBox, { backgroundColor: colors.primary + "20" }]}>
                   <Ionicons name="school" size={20} color={colors.primary} />
                 </View>
@@ -173,14 +178,17 @@ export default function RankingCompleto() {
               style={[
                 styles.rankItem,
                 { backgroundColor: colors.card, borderColor: colors.border },
-                isMe && { backgroundColor: colors.primary + "15", borderColor: colors.primary },
+                isMe && { backgroundColor: colors.primary + "15", borderColor: colors.primary, borderWidth: 2 },
               ]}
+              accessible
+              accessibilityLabel={`${index + 1}º lugar, ${item.usuario}${isMe ? ", você" : ""}, ${siglaInstituicao(item.instituicao || "IF Sertão")}, ${item.pontuacao || 0} XP`}
             >
               <View style={styles.rankLeft}>
                 <View style={styles.podiumContainer}>{renderPodiumIcon(index)}</View>
                 <Image
                   source={{ uri: avatarUrl }}
                   style={[styles.avatar, { borderColor: colors.border }]}
+                  accessibilityIgnoresInvertColors
                 />
                 <View>
                   <Text style={[styles.itemUser, { color: colors.text }, isMe && { color: colors.primary, fontWeight: "900" }]}>
@@ -199,23 +207,15 @@ export default function RankingCompleto() {
         }}
       />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   center: { justifyContent: "center", alignItems: "center" },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-  },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
+  medalha: { alignItems: "center" },
+  medalhaNumero: { fontSize: 10, fontWeight: "bold", color: c.textLight, marginTop: -1 },
   rankItem: {
     flexDirection: "row",
     justifyContent: "space-between",

@@ -9,10 +9,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/AppText";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { OnboardingModal } from "../../components/OnboardingModal";
 import MarkdownText from "../../components/MarkdownText";
@@ -20,12 +20,13 @@ import { aiService } from "../../src/services/aiService";
 import { authService } from "../../src/services/auth";
 import { newsService } from "../../src/services/newsService";
 import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
 
 export default function HomeAluno() {
   const { pageReady } = useNavigationLoading();
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [news, setNews] = useState<any[]>([]);
   const [loadingNews, setLoadingNews] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -179,7 +180,7 @@ export default function HomeAluno() {
 
           <TouchableOpacity
             style={styles.iconBtn}
-            onPress={() => router.push("/(tabs)/perfil")}
+            onPress={() => router.navigate("/(tabs)/perfil")}
             accessibilityRole="button"
             accessibilityLabel="Meu perfil"
           >
@@ -195,7 +196,8 @@ export default function HomeAluno() {
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
+        {/* Fundo clicável para fechar; accessible=false para não agrupar o modal inteiro num único foco do leitor de tela */}
+        <Pressable accessible={false} style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
           <View style={[styles.inboxContainer, { backgroundColor: colors.card }]}>
             <View style={[styles.inboxHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.inboxTitle, { color: colors.text }]}>Avisos dos Docentes</Text>
@@ -248,26 +250,28 @@ export default function HomeAluno() {
         {/* CARD OSIA */}
         <View style={[styles.osiaCard, { backgroundColor: colors.primary }]}>
           <View style={styles.osiaHeader}>
-            <MaterialCommunityIcons name="robot-happy" size={22} color="#fff" />
+            <MaterialCommunityIcons name="robot-happy" size={22} color={colors.onPrimary} />
             <Text style={styles.osiaTitle}>OSIA lhe diz:</Text>
           </View>
-          <MarkdownText color="rgba(255,255,255,0.9)" style={styles.osiaText}>{osiaTip}</MarkdownText>
+          <MarkdownText color={colors.onPrimary} style={styles.osiaText}>{osiaTip}</MarkdownText>
         </View>
 
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={[styles.mainAction, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/(tabs)/escolher")}
+            onPress={() => router.navigate("/(tabs)/escolher")}
+            accessibilityRole="button"
           >
-            <Ionicons name="play-circle" size={40} color="#fff" />
+            <Ionicons name="play-circle" size={40} color={colors.onPrimary} />
             <Text style={styles.actionTitle}>Simulados</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.mainAction, { backgroundColor: "#D4AF37" }]}
-            onPress={() => router.push("/(tabs)/ranking")}
+            style={[styles.mainAction, { backgroundColor: colors.warning }]}
+            onPress={() => router.navigate("/(tabs)/ranking")}
+            accessibilityRole="button"
           >
-            <Ionicons name="trophy" size={38} color="#fff" />
+            <Ionicons name="trophy" size={38} color={colors.onPrimary} />
             <Text style={styles.actionTitle}>Ranking</Text>
           </TouchableOpacity>
         </View>
@@ -275,7 +279,12 @@ export default function HomeAluno() {
         <View style={styles.newsSection}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Notícias IF Sertão</Text>
-            <TouchableOpacity onPress={() => Linking.openURL("https://ifsertaope.edu.br/salgueiro/")}>
+            <TouchableOpacity
+              onPress={() => Linking.openURL("https://ifsertaope.edu.br/salgueiro/")}
+              accessibilityRole="link"
+              accessibilityLabel="Ver site do IF Sertão campus Salgueiro"
+              hitSlop={10}
+            >
               <Text style={[styles.seeMore, { color: colors.primary }]}>Ver site</Text>
             </TouchableOpacity>
           </View>
@@ -288,6 +297,8 @@ export default function HomeAluno() {
                 key={index}
                 style={[styles.newsCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() => item.url_original && Linking.openURL(item.url_original)}
+                accessibilityRole="link"
+                accessibilityHint="Abre a notícia no navegador"
               >
                 <View style={[styles.newsHeaderRow]}>
                   <View style={[styles.tag, { backgroundColor: colors.bg }]}>
@@ -316,7 +327,7 @@ export default function HomeAluno() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: 25,
@@ -335,17 +346,17 @@ const styles = StyleSheet.create({
     right: 0,
     minWidth: 18,
     height: 18,
-    backgroundColor: "red",
+    backgroundColor: c.danger,
     borderRadius: 9,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: c.card,
   },
-  badgeText: { color: "#fff", fontSize: 10, fontWeight: "bold" },
+  badgeText: { color: c.onPrimary, fontSize: 10, fontWeight: "bold" },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: c.overlay,
     justifyContent: "flex-start",
     alignItems: "center",
     paddingTop: 100,
@@ -381,7 +392,7 @@ const styles = StyleSheet.create({
   },
   notifTitle: { fontSize: 15, fontWeight: "bold" },
   notifMsg: { fontSize: 13, marginTop: 2, lineHeight: 18 },
-  notifTime: { fontSize: 11, color: "#94A3B8", marginTop: 6 },
+  notifTime: { fontSize: 11, color: c.textLight, marginTop: 6 },
   welcomeSection: { padding: 25, paddingBottom: 10 },
   welcomeText: { fontSize: 16 },
   userName: { fontSize: 26, fontWeight: "bold" },
@@ -392,8 +403,8 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   osiaHeader: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-  osiaTitle: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  osiaText: { color: "rgba(255,255,255,0.9)", fontSize: 13, fontStyle: "italic", lineHeight: 18 },
+  osiaTitle: { color: c.onPrimary, fontWeight: "bold", fontSize: 16 },
+  osiaText: { color: c.onPrimary, fontSize: 13, fontStyle: "italic", lineHeight: 18 },
   actionRow: { flexDirection: "row", paddingHorizontal: 25, gap: 15, marginBottom: 25 },
   mainAction: {
     flex: 1,
@@ -403,7 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  actionTitle: { color: "#fff", fontSize: 15, fontWeight: "bold" },
+  actionTitle: { color: c.onPrimary, fontSize: 15, fontWeight: "bold" },
   newsSection: { paddingHorizontal: 25 },
   sectionHeader: {
     flexDirection: "row",

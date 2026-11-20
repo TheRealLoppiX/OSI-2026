@@ -4,18 +4,18 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { supabase } from "../../src/services/supabase";
-import { useTheme } from "../../src/context/ThemeContext";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function EnviarNotificacao() {
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [titulo, setTitulo] = useState("Comunicado OSI");
   const [mensagem, setMensagem] = useState("");
   const [loading, setLoading] = useState(false);
@@ -84,13 +84,13 @@ export default function EnviarNotificacao() {
           placeholderTextColor={colors.textLight}
         />
 
-        <TouchableOpacity
+        <TouchableOpacity accessibilityRole="button"
           style={[styles.btn, { backgroundColor: colors.primary }, loading && { opacity: 0.7 }]}
           onPress={handleSend}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.btnText}>Enviar Agora 🚀</Text>
           )}
@@ -100,7 +100,7 @@ export default function EnviarNotificacao() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (c: ThemeColors) => StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingTop: 60,
@@ -116,5 +116,5 @@ const styles = StyleSheet.create({
   input: { padding: 15, borderRadius: 12, borderWidth: 1 },
   textArea: { height: 150, textAlignVertical: "top" },
   btn: { padding: 18, borderRadius: 15, alignItems: "center", marginTop: 30 },
-  btnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  btnText: { color: c.onPrimary, fontWeight: "bold", fontSize: 16 },
 });

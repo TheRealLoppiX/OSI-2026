@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../components/AppText";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
 import { useTheme } from "../src/context/ThemeContext";
 
@@ -23,6 +25,7 @@ function urlEhConfiavel(valor: string): boolean {
 export default function FormsWebView() {
   const { url, titulo } = useLocalSearchParams();
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const urlValida = typeof url === "string" && urlEhConfiavel(url);
 
@@ -33,7 +36,7 @@ export default function FormsWebView() {
         <Text style={{ marginTop: 10, color: colors.text }}>
           {url ? "Link não reconhecido como um Google Forms válido." : "Link do simulado não encontrado."}
         </Text>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" style={{ padding: 12 }}>
           <Text style={{ color: colors.primary, fontWeight: "bold", marginTop: 10 }}>Voltar</Text>
         </TouchableOpacity>
       </View>
@@ -42,12 +45,17 @@ export default function FormsWebView() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()}>
+      <View style={[styles.header, { paddingTop: insets.top + 10, backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Fechar simulado"
+          style={{ width: 44, height: 44, justifyContent: "center", alignItems: "center" }}
+        >
           <Ionicons name="close" size={28} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1} accessibilityRole="header">
             {titulo || "Simulado Externo"}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textLight }]}>Ambiente Seguro Google Forms</Text>
@@ -74,14 +82,13 @@ export default function FormsWebView() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
-    paddingTop: 50,
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     paddingBottom: 15,
     flexDirection: "row",
     alignItems: "center",
     borderBottomWidth: 1,
   },
-  titleContainer: { marginLeft: 15, flex: 1 },
+  titleContainer: { marginLeft: 8, flex: 1 },
   title: { fontSize: 16, fontWeight: "bold" },
   subtitle: { fontSize: 11 },
   loader: {

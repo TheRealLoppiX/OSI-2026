@@ -1,27 +1,25 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Modal,
-  Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
-import { useTheme } from "../../src/context/ThemeContext";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
 
 export default function EscolherSimulado() {
   const { pageReady } = useNavigationLoading();
   const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [simulados, setSimulados] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tutorVisible, setTutorVisible] = useState(false);
   const [busca, setBusca] = useState("");
 
   const simuladosFiltrados = busca.trim()
@@ -63,25 +61,21 @@ export default function EscolherSimulado() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Voltar">
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: colors.text }]}>Simulados OSI</Text>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Simulados OSI" showBack={false} />
 
       <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <Ionicons name="search-outline" size={18} color={colors.textLight} />
         <TextInput
           style={[styles.searchInput, { color: colors.text }]}
           placeholder="Buscar por título ou matéria..."
-          placeholderTextColor={colors.textLight}
+          placeholderTextColor={colors.textMuted}
           value={busca}
           onChangeText={setBusca}
+          accessibilityLabel="Buscar simulado por título ou matéria"
         />
         {busca.length > 0 && (
-          <TouchableOpacity onPress={() => setBusca("")} accessibilityRole="button" accessibilityLabel="Limpar busca">
+          <TouchableOpacity onPress={() => setBusca("")} accessibilityRole="button" accessibilityLabel="Limpar busca" hitSlop={12}>
             <Ionicons name="close-circle" size={18} color={colors.textLight} />
           </TouchableOpacity>
         )}
@@ -100,17 +94,19 @@ export default function EscolherSimulado() {
             <TouchableOpacity
               style={[styles.card, { backgroundColor: colors.card }]}
               onPress={() => handleSimuladoPress(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.titulo}. ${item.materia || "Geral"}. ${item.url_google_forms ? "Abre no Google Forms" : "Simulado no app"}`}
             >
               <View
                 style={[
                   styles.iconBox,
-                  { backgroundColor: item.url_google_forms ? "#FEF9C3" : "#DCFCE7" },
+                  { backgroundColor: item.url_google_forms ? colors.warningSoft : colors.successSoft },
                 ]}
               >
                 <Ionicons
                   name={item.url_google_forms ? "logo-google" : "bulb-outline"}
                   size={26}
-                  color={item.url_google_forms ? "#CA8A04" : colors.primary}
+                  color={item.url_google_forms ? colors.warning : colors.primary}
                 />
               </View>
               <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>
@@ -129,90 +125,12 @@ export default function EscolherSimulado() {
         />
       )}
 
-      {/* BOTÃO FLUTUANTE OSIA */}
-      <TouchableOpacity
-        style={styles.geminiFab}
-        onPress={() => setTutorVisible(true)}
-        accessibilityRole="button"
-        accessibilityLabel="Abrir OSIA"
-      >
-        <MaterialCommunityIcons name="auto-fix" size={30} color="#fff" />
-      </TouchableOpacity>
-
-      {/* MODAL DO TUTOR IA */}
-      <Modal
-        visible={tutorVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setTutorVisible(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setTutorVisible(false)}>
-          <View style={[styles.tutorSheet, { backgroundColor: colors.card }]}>
-            <View style={[styles.indicator, { backgroundColor: colors.border }]} />
-
-            <View style={styles.tutorHeaderRow}>
-              <MaterialCommunityIcons name="auto-fix" size={28} color="#4F46E5" />
-              <Text style={[styles.tutorTitle, { color: colors.text }]}>OSIA</Text>
-            </View>
-
-            <Text style={[styles.tutorSub, { color: colors.textLight }]}>A 'Sabedoria' da OSI</Text>
-
-            {/* GRADE 2 COLUNAS */}
-            <View style={styles.optionsGrid}>
-              <TouchableOpacity
-                style={[styles.optionCard, { backgroundColor: colors.bg, borderColor: colors.border }]}
-                onPress={() => {
-                  setTutorVisible(false);
-                  router.push("/tutor/chat" as any);
-                }}
-              >
-                <View style={[styles.optionIcon, { backgroundColor: "#E0E7FF" }]}>
-                  <Ionicons name="chatbubbles" size={26} color="#4F46E5" />
-                </View>
-                <Text style={[styles.optionLabel, { color: colors.text }]}>Tirar Dúvidas</Text>
-                <Text style={[styles.optionDesc, { color: colors.textLight }]}>
-                  Explicações sobre conceitos
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.optionCard, { backgroundColor: colors.bg, borderColor: colors.border }]}
-                onPress={() => {
-                  setTutorVisible(false);
-                  router.push("/tutor/gerador" as any);
-                }}
-              >
-                <View style={[styles.optionIcon, { backgroundColor: "#F0FDF4" }]}>
-                  <Ionicons name="sparkles" size={26} color="#16A34A" />
-                </View>
-                <Text style={[styles.optionLabel, { color: colors.text }]}>Gerar Simulado</Text>
-                <Text style={[styles.optionDesc, { color: colors.textLight }]}>
-                  Treino focado em um tema
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setTutorVisible(false)}>
-              <Text style={styles.closeBtnText}>Fechar</Text>
-            </TouchableOpacity>
-          </View>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    paddingTop: 60,
-    padding: 25,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 15,
-    borderBottomWidth: 1,
-  },
-  title: { fontSize: 20, fontWeight: "bold" },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -233,6 +151,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     elevation: 2,
     gap: 8,
+    borderWidth: 1,
+    borderColor: c.border,
   },
   iconBox: {
     width: 48,
@@ -244,75 +164,19 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 14, fontWeight: "bold", lineHeight: 20 },
   cardMateria: { fontSize: 12 },
   formsTag: {
-    backgroundColor: "#FFF7ED",
+    backgroundColor: c.warningSoft,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
     alignSelf: "flex-start",
   },
-  formsTagText: { fontSize: 10, color: "#C2410C", fontWeight: "bold" },
+  formsTagText: { fontSize: 10, color: c.warning, fontWeight: "bold" },
   nativeTag: {
-    backgroundColor: "#F0FDF4",
+    backgroundColor: c.successSoft,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
     alignSelf: "flex-start",
   },
-  nativeTagText: { fontSize: 10, color: "#15803D", fontWeight: "bold" },
-  geminiFab: {
-    position: "absolute",
-    bottom: 30,
-    right: 25,
-    width: 65,
-    height: 65,
-    borderRadius: 32.5,
-    backgroundColor: "#4F46E5",
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  tutorSheet: {
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
-    padding: 25,
-    paddingBottom: 40,
-  },
-  indicator: {
-    width: 40,
-    height: 5,
-    borderRadius: 3,
-    marginBottom: 20,
-    alignSelf: "center",
-  },
-  tutorHeaderRow: { flexDirection: "row", alignItems: "center", gap: 10, justifyContent: "center" },
-  tutorTitle: { fontSize: 22, fontWeight: "bold" },
-  tutorSub: { fontSize: 14, textAlign: "center", marginTop: 5, marginBottom: 24 },
-  optionsGrid: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 8,
-  },
-  optionCard: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 8,
-  },
-  optionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  optionLabel: { fontSize: 14, fontWeight: "bold" },
-  optionDesc: { fontSize: 12, lineHeight: 16 },
-  closeBtn: { marginTop: 20, alignItems: "center" },
-  closeBtnText: { color: "#94A3B8", fontWeight: "bold" },
+  nativeTagText: { fontSize: 10, color: c.success, fontWeight: "bold" },
 });

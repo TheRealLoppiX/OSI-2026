@@ -3,32 +3,32 @@ import { router, useLocalSearchParams } from "expo-router";
 import { MotiView } from "moti";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Image,
   Modal,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../components/AppText";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
-import { aiService } from "../../src/services/aiService";
-import { authService } from "../../src/services/auth";
-import { supabase } from "../../src/services/supabase";
-import { useTheme } from "../../src/context/ThemeContext";
-import { appAlert } from "../../src/services/appAlert";
-import { friendlyError } from "../../src/utils/friendlyError";
-
-function getPerformanceTier(pct: number) {
-  if (pct >= 80) return { label: "Excelente!", cor: "#10B981", bg: "#ECFDF5" };
-  if (pct >= 60) return { label: "Bom Desempenho", cor: "#3B82F6", bg: "#EFF6FF" };
-  if (pct >= 40) return { label: "Em Desenvolvimento", cor: "#F59E0B", bg: "#FFFBEB" };
-  return { label: "Precisa Revisar", cor: "#EF4444", bg: "#FEF2F2" };
-}
+import { SpeakButton } from "../components/SpeakButton";
+import { useAccessibility } from "../src/context/AccessibilityContext";
+import { aiService } from "../src/services/aiService";
+import { authService } from "../src/services/auth";
+import { supabase } from "../src/services/supabase";
+import { useTheme, useThemedStyles, type ThemeColors } from "../src/context/ThemeContext";
+import { faixaDesempenho } from "../src/utils/desempenho";
+import { appAlert } from "../src/services/appAlert";
+import { friendlyError } from "../src/utils/friendlyError";
 
 // Imagem de questão com loading/erro — usada tanto na tela de resposta quanto no gabarito.
 function QuestaoImagem({ uri, style }: { uri: string; style?: any }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [status, setStatus] = useState<"loading" | "error" | "loaded">("loading");
 
   useEffect(() => {
@@ -42,18 +42,20 @@ function QuestaoImagem({ uri, style }: { uri: string; style?: any }) {
           source={{ uri }}
           style={styles.questaoImagem}
           resizeMode="contain"
+          accessibilityLabel="Imagem da questão"
+          accessibilityIgnoresInvertColors
           onLoad={() => setStatus("loaded")}
           onError={() => setStatus("error")}
         />
       )}
       {status === "loading" && (
         <View style={styles.imagemOverlay}>
-          <ActivityIndicator color="#94A3B8" />
+          <ActivityIndicator color={colors.textMuted} />
         </View>
       )}
       {status === "error" && (
         <View style={styles.imagemOverlay}>
-          <Ionicons name="image-outline" size={26} color="#94A3B8" />
+          <Ionicons name="image-outline" size={26} color={colors.textMuted} />
           <Text style={styles.imagemErrorText}>Não foi possível carregar a imagem</Text>
         </View>
       )}
@@ -64,6 +66,9 @@ function QuestaoImagem({ uri, style }: { uri: string; style?: any }) {
 export default function SimuladoNativo() {
   const { id, dadosIA, titulo } = useLocalSearchParams();
   const { colors } = useTheme();
+  const { fontScale } = useAccessibility();
+  const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
 
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -161,6 +166,9 @@ export default function SimuladoNativo() {
     setIsCorrect(correct);
     if (correct) setScore((s) => s + 1);
     setShowFeedback(true);
+    AccessibilityInfo.announceForAccessibility(
+      correct ? "Acertou!" : `Errou. A resposta correta é a alternativa ${questions[currentIdx].resposta_correta}.`
+    );
   };
 
   const nextQuestion = async () => {
@@ -212,7 +220,9 @@ export default function SimuladoNativo() {
         Você é OSIA, sistema de IA da OSI. O estudante errou: ${JSON.stringify(listaErros)}.
 
         Gere uma ANÁLISE GRÁFICA usando HTML e CSS inline (sem libs JS externas).
-        Dark mode (#0F172A), futurista. INCLUA:
+        Use exatamente estas cores: fundo ${colors.bg}, cartões ${colors.card}, texto ${colors.text},
+        texto secundário ${colors.textLight}, destaque ${colors.highlight}, erro ${colors.danger}, acerto ${colors.success}.
+        Fonte base de ${Math.round(16 * fontScale)}px. Inclua <meta name="viewport" content="width=device-width, initial-scale=1">. INCLUA:
         1. "Painel de Diagnóstico OSIA" com barras visuais de calor por matéria/tópico.
         2. "MAPA MENTAL DE ERROS" em árvore CSS mostrando erro → conceitos para revisar.
         3. Plano de ação em cards modernos.
@@ -249,7 +259,7 @@ export default function SimuladoNativo() {
 
   if (finished) {
     const percentage = Math.round((score / questions.length) * 100);
-    const tier = getPerformanceTier(percentage);
+    const tier = faixaDesempenho(percentage, colors);
     const erros = questions.filter((q, i) => userAnswers[i] !== q.resposta_correta);
 
     return (
@@ -264,7 +274,7 @@ export default function SimuladoNativo() {
             <Text style={[styles.tierText, { color: tier.cor }]}>{tier.label}</Text>
           </View>
 
-          <Text style={styles.resultMainTitle}>Simulado concluído!</Text>
+          <Text style={styles.resultMainTitle} accessibilityRole="header">Simulado concluído!</Text>
 
           {/* XP ganho */}
           {xpGanho > 0 && (
@@ -274,29 +284,33 @@ export default function SimuladoNativo() {
               transition={{ delay: 300 }}
               style={styles.xpBadge}
             >
-              <Ionicons name="flash" size={20} color="#FFD700" />
+              <Ionicons name="flash" size={20} color={colors.warning} />
               <Text style={styles.xpText}>+{xpGanho} XP ganhos!</Text>
             </MotiView>
           )}
 
           {/* Stats */}
-          <View style={styles.statsRow}>
+          <View
+            style={styles.statsRow}
+            accessible
+            accessibilityLabel={`Você acertou ${score} de ${questions.length} questões, ${percentage}%. ${questions.length - score} erradas.`}
+          >
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Pontuação</Text>
               <Text style={styles.statValue}>{score}/{questions.length}</Text>
             </View>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Acertos</Text>
-              <Text style={[styles.statValue, { color: "#10B981" }]}>{percentage}%</Text>
+              <Text style={[styles.statValue, { color: colors.success }]}>{percentage}%</Text>
             </View>
             <View style={[styles.statBox, { flex: 1.4 }]}>
               <View style={styles.miniRow}>
                 <Text style={styles.miniLabel}>Corretas</Text>
-                <Text style={[styles.miniValue, { color: "#10B981" }]}>{score}</Text>
+                <Text style={[styles.miniValue, { color: colors.success }]}>{score}</Text>
               </View>
               <View style={styles.miniRow}>
                 <Text style={styles.miniLabel}>Erradas</Text>
-                <Text style={[styles.miniValue, { color: "#EF4444" }]}>{questions.length - score}</Text>
+                <Text style={[styles.miniValue, { color: colors.danger }]}>{questions.length - score}</Text>
               </View>
             </View>
           </View>
@@ -312,21 +326,24 @@ export default function SimuladoNativo() {
           </View>
 
           {/* Ações IA */}
-          <View style={[styles.iaAnalysisCard, { borderColor: "#4F46E5", backgroundColor: "#1E1B4B" }]}>
-            <View style={[styles.iaIconBox, { backgroundColor: "#4F46E5" }]}>
-              <MaterialCommunityIcons name="robot" size={24} color="#fff" />
+          <View style={styles.iaAnalysisCard}>
+            <View style={styles.iaIconBox}>
+              <MaterialCommunityIcons name="robot" size={24} color={colors.onPrimary} />
             </View>
             <View style={{ flex: 1, marginHorizontal: 15 }}>
-              <Text style={[styles.iaCardTitle, { color: "#A5B4FC" }]}>Diagnóstico OSIA</Text>
+              <Text style={styles.iaCardTitle}>Diagnóstico OSIA</Text>
               <Text style={styles.iaCardSub}>Mapa mental + plano de ação para seus erros.</Text>
             </View>
             <TouchableOpacity
-              style={[styles.iaBtn, { backgroundColor: "#4F46E5" }, loadingIA && { opacity: 0.7 }]}
+              style={[styles.iaBtn, loadingIA && { opacity: 0.7 }]}
               onPress={handleAnalisarDesempenho}
               disabled={loadingIA}
+              accessibilityRole="button"
+              accessibilityLabel="Analisar meus erros com a OSIA"
+              accessibilityState={{ busy: loadingIA }}
             >
               {loadingIA ? (
-                <ActivityIndicator size="small" color="#fff" />
+                <ActivityIndicator size="small" color={colors.onPrimary} />
               ) : (
                 <Text style={styles.iaBtnText}>Analisar</Text>
               )}
@@ -334,19 +351,24 @@ export default function SimuladoNativo() {
           </View>
 
           {/* Continuar aprendendo */}
-          <Text style={styles.sectionTitle}>Continuar aprendendo</Text>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Continuar aprendendo</Text>
           <View style={styles.studyOptionsRow}>
-            <TouchableOpacity style={styles.studyCard} onPress={handleIrParaFlashcards}>
-              <View style={[styles.studyIcon, { backgroundColor: "#E0E7FF" }]}>
-                <Ionicons name="copy" size={20} color="#4F46E5" />
+            <TouchableOpacity style={styles.studyCard} onPress={handleIrParaFlashcards} accessibilityRole="button">
+              <View style={[styles.studyIcon, { backgroundColor: colors.highlightSoft }]}>
+                <Ionicons name="copy" size={20} color={colors.highlight} />
               </View>
               <Text style={styles.studyCardTitle}>Flashcards</Text>
               <Text style={styles.studyCardSub}>Revisar erros</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.studyCard} onPress={() => setShowReview((v) => !v)}>
-              <View style={[styles.studyIcon, { backgroundColor: "#DCFCE7" }]}>
-                <Ionicons name="list" size={20} color="#10B981" />
+            <TouchableOpacity
+              style={styles.studyCard}
+              onPress={() => setShowReview((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showReview }}
+            >
+              <View style={[styles.studyIcon, { backgroundColor: colors.successSoft }]}>
+                <Ionicons name="list" size={20} color={colors.success} />
               </View>
               <Text style={styles.studyCardTitle}>Gabarito</Text>
               <Text style={styles.studyCardSub}>{showReview ? "Ocultar" : "Ver questões"}</Text>
@@ -357,15 +379,16 @@ export default function SimuladoNativo() {
           {erros.length > 0 && (
             <TouchableOpacity
               style={styles.refazerBtn}
+              accessibilityRole="button"
               onPress={() => router.replace({
-                pathname: "/(tabs)/simulado",
+                pathname: "/simulado",
                 params: {
                   dadosIA: JSON.stringify(erros),
                   titulo: `Revisão: ${(titulo as string) || "Simulado OSI"}`,
                 },
               } as any)}
             >
-              <Ionicons name="refresh-circle-outline" size={20} color="#F59E0B" />
+              <Ionicons name="refresh-circle-outline" size={20} color={colors.warning} />
               <Text style={styles.refazerBtnText}>Refazer {erros.length} questão(ões) errada(s)</Text>
             </TouchableOpacity>
           )}
@@ -373,20 +396,25 @@ export default function SimuladoNativo() {
           {/* Review por questão */}
           {showReview && (
             <View style={styles.reviewSection}>
-              <Text style={styles.reviewTitle}>Revisão das Questões</Text>
+              <Text style={styles.reviewTitle} accessibilityRole="header">Revisão das Questões</Text>
               {questions.map((q, i) => {
                 const acertou = userAnswers[i] === q.resposta_correta;
                 return (
                   <View
                     key={q.id || i}
-                    style={[styles.reviewItem, { borderLeftColor: acertou ? "#10B981" : "#EF4444" }]}
+                    style={[styles.reviewItem, { borderLeftColor: acertou ? colors.success : colors.danger }]}
+                    accessible
+                    accessibilityLabel={`Questão ${i + 1}, ${acertou ? "acertou" : "errou"}. ${q.enunciado}${acertou ? "" : `. Sua resposta: ${userAnswers[i] || "nenhuma"}. Correta: ${q.resposta_correta}`}`}
                   >
                     <View style={styles.reviewHeaderRow}>
                       <Ionicons
                         name={acertou ? "checkmark-circle" : "close-circle"}
                         size={18}
-                        color={acertou ? "#10B981" : "#EF4444"}
+                        color={acertou ? colors.success : colors.danger}
                       />
+                      <Text style={[styles.reviewStatus, { color: acertou ? colors.success : colors.danger }]}>
+                        {acertou ? "Acertou" : "Errou"}
+                      </Text>
                       {q.materia && (
                         <View style={styles.materiaTag}>
                           <Text style={styles.materiaTagText}>{q.materia}</Text>
@@ -412,14 +440,20 @@ export default function SimuladoNativo() {
           <TouchableOpacity
             style={styles.finalBackBtn}
             onPress={() => router.dismissTo("/(tabs)/home")}
+            accessibilityRole="button"
           >
-            <Ionicons name="home-outline" size={18} color="#fff" />
+            <Ionicons name="home-outline" size={18} color={colors.onPrimary} />
             <Text style={styles.finalBackBtnText}>Voltar ao Início</Text>
           </TouchableOpacity>
         </MotiView>
 
         {/* Modal WebView OSIA */}
-        <Modal visible={modalIAResultVisible} transparent animationType="slide">
+        <Modal
+          visible={modalIAResultVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setModalIAResultVisible(false)}
+        >
           <View style={styles.modalOverlay}>
             <MotiView
               from={{ opacity: 0, translateY: 100 }}
@@ -427,27 +461,27 @@ export default function SimuladoNativo() {
               style={styles.modalContentFull}
             >
               <View style={styles.iaModalHeader}>
-                <MaterialCommunityIcons name="shield" size={28} color="#4F46E5" />
-                <Text style={styles.iaModalTitle}>OSIA Analytics · OSI 2026</Text>
+                <MaterialCommunityIcons name="shield" size={28} color={colors.highlight} />
+                <Text style={styles.iaModalTitle} accessibilityRole="header">Diagnóstico OSIA</Text>
                 <TouchableOpacity
                   onPress={() => setModalIAResultVisible(false)}
                   style={styles.closeHeaderBtn}
                   accessibilityRole="button"
                   accessibilityLabel="Fechar painel de diagnóstico"
                 >
-                  <Ionicons name="close-circle" size={28} color="#94A3B8" />
+                  <Ionicons name="close-circle" size={28} color={colors.textLight} />
                 </TouchableOpacity>
               </View>
               <View style={{ flex: 1, width: "100%", borderRadius: 15, overflow: "hidden" }}>
                 <WebView
                   originWhitelist={["*"]}
                   source={{ html: htmlAnaliseOSIA }}
-                  style={{ flex: 1, backgroundColor: "#0F172A" }}
+                  style={{ flex: 1, backgroundColor: colors.bg }}
                   javaScriptEnabled
                   domStorageEnabled
                 />
               </View>
-              <TouchableOpacity style={styles.closeIAbnt} onPress={() => setModalIAResultVisible(false)}>
+              <TouchableOpacity style={styles.closeIAbnt} onPress={() => setModalIAResultVisible(false)} accessibilityRole="button">
                 <Text style={styles.closeIAbntText}>Fechar Painel</Text>
               </TouchableOpacity>
             </MotiView>
@@ -460,8 +494,8 @@ export default function SimuladoNativo() {
   const q = questions[currentIdx];
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }]}>
-      <Modal visible={showFeedback} transparent animationType="fade">
+    <View style={styles.container}>
+      <Modal visible={showFeedback} transparent animationType="fade" onRequestClose={nextQuestion}>
         <View style={styles.modalOverlayCenter}>
           <MotiView
             from={{ scale: 0.9 }}
@@ -471,25 +505,41 @@ export default function SimuladoNativo() {
             <Ionicons
               name={isCorrect ? "checkmark-circle" : "close-circle"}
               size={60}
-              color={isCorrect ? "#FBBF24" : "#EF4444"}
+              color={isCorrect ? colors.success : colors.danger}
             />
-            <Text style={[styles.feedbackTitle, { color: isCorrect ? "#FBBF24" : "#EF4444" }]}>
+            <Text
+              style={[styles.feedbackTitle, { color: isCorrect ? colors.success : colors.danger }]}
+              accessibilityRole="header"
+            >
               {isCorrect ? "Acertou!" : "Ops, errou!"}
             </Text>
+            {!isCorrect && (
+              <Text style={[styles.feedbackLabel, { color: colors.text, marginTop: 0 }]}>
+                Resposta correta: alternativa {q?.resposta_correta}
+              </Text>
+            )}
             <ScrollView style={{ width: "100%", marginBottom: 20 }}>
               <Text style={[styles.feedbackLabel, { color: colors.textLight }]}>Justificativa:</Text>
               <Text style={[styles.feedbackText, { color: colors.text }]}>
                 {q?.justificativa || "Analise a alternativa com atenção."}
               </Text>
+              <View style={{ marginTop: 12 }}>
+                <SpeakButton texto={q?.justificativa || ""} rotulo="justificativa" />
+              </View>
             </ScrollView>
-            <TouchableOpacity style={[styles.nextBtn, { backgroundColor: colors.primary }]} onPress={nextQuestion}>
+            <TouchableOpacity
+              style={[styles.nextBtn, { backgroundColor: colors.primary }]}
+              onPress={nextQuestion}
+              accessibilityRole="button"
+              accessibilityLabel={currentIdx + 1 < questions.length ? "Continuar para a próxima questão" : "Ver resultado"}
+            >
               <Text style={styles.nextBtnText}>Continuar</Text>
             </TouchableOpacity>
           </MotiView>
         </View>
       </Modal>
 
-      <View style={styles.progressHeader}>
+      <View style={[styles.progressHeader, { marginTop: insets.top + 12 }]}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.progressBackBtn}
@@ -498,7 +548,13 @@ export default function SimuladoNativo() {
         >
           <Ionicons name="close" size={22} color={colors.textLight} />
         </TouchableOpacity>
-        <View style={{ flex: 1, marginHorizontal: 12 }}>
+        <View
+          style={{ flex: 1, marginHorizontal: 12 }}
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityLabel="Progresso do simulado"
+          accessibilityValue={{ min: 0, max: questions.length, now: currentIdx + 1, text: `Questão ${currentIdx + 1} de ${questions.length}` }}
+        >
           <View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
             <View
               style={[styles.progressBarFill, { backgroundColor: colors.primary, width: `${((currentIdx + 1) / questions.length) * 100}%` }]}
@@ -508,13 +564,31 @@ export default function SimuladoNativo() {
         <Text style={[styles.progressText, { color: colors.textLight }]}>{currentIdx + 1}/{questions.length}</Text>
       </View>
 
-      <Text style={[styles.enunciado, { color: colors.text }]}>{q?.enunciado}</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
+      <Text style={[styles.enunciado, { color: colors.text }]} accessibilityRole="header">{q?.enunciado}</Text>
+      <View style={{ marginBottom: 14 }}>
+        <SpeakButton
+          rotulo="questão"
+          texto={[
+            q?.enunciado,
+            ...["a", "b", "c", "d", "e"]
+              .filter((l) => q?.[`opcao_${l}`])
+              .map((l) => `Alternativa ${l.toUpperCase()}: ${q[`opcao_${l}`]}`),
+          ].join(". ")}
+        />
+      </View>
       {q?.imagem_url ? <QuestaoImagem uri={q.imagem_url} /> : null}
       {["a", "b", "c", "d", "e"].map((l) => {
         const texto = q?.[`opcao_${l}`];
         if (!texto) return null;
         return (
-          <TouchableOpacity key={l} style={[styles.optBtn, { backgroundColor: colors.card }]} onPress={() => handleAnswer(l.toUpperCase())}>
+          <TouchableOpacity
+            key={l}
+            style={[styles.optBtn, { backgroundColor: colors.card }]}
+            onPress={() => handleAnswer(l.toUpperCase())}
+            accessibilityRole="button"
+            accessibilityLabel={`Alternativa ${l.toUpperCase()}: ${texto}`}
+          >
             <View style={[styles.optLetter, { backgroundColor: colors.primary }]}>
               <Text style={styles.optLetterText}>{l.toUpperCase()}</Text>
             </View>
@@ -522,30 +596,30 @@ export default function SimuladoNativo() {
           </TouchableOpacity>
         );
       })}
+      </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 25 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, padding: 25, paddingTop: 0, backgroundColor: c.bg },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.bg },
   progressHeader: {
-    marginTop: 40,
-    marginBottom: 30,
+    marginBottom: 24,
     flexDirection: "row",
     alignItems: "center",
   },
-  progressBackBtn: { padding: 4 },
+  progressBackBtn: { width: 44, height: 44, justifyContent: "center", alignItems: "center", marginLeft: -10 },
   progressText: { fontWeight: "bold", fontSize: 13, minWidth: 36, textAlign: "right" },
   progressBarBg: { height: 6, borderRadius: 3 },
   progressBarFill: { height: "100%", borderRadius: 3 },
-  enunciado: { fontSize: 18, fontWeight: "bold", marginBottom: 16 },
+  enunciado: { fontSize: 18, fontWeight: "bold", marginBottom: 12, lineHeight: 26 },
   imagemWrapper: {
     width: "100%",
     height: 200,
     borderRadius: 12,
     marginBottom: 20,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: c.surfaceAlt,
     overflow: "hidden",
   },
   questaoImagem: { width: "100%", height: "100%" },
@@ -553,17 +627,20 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#E2E8F0",
+    backgroundColor: c.surfaceAlt,
     gap: 6,
   },
-  imagemErrorText: { color: "#64748B", fontSize: 12, textAlign: "center", paddingHorizontal: 20 },
+  imagemErrorText: { color: c.textLight, fontSize: 12, textAlign: "center", paddingHorizontal: 20 },
   reviewImagemWrapper: { height: 120, marginTop: 10, marginBottom: 4 },
   optBtn: {
     flexDirection: "row",
     alignItems: "center",
     padding: 15,
+    minHeight: 56,
     borderRadius: 15,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: c.border,
     elevation: 1,
   },
   optLetter: {
@@ -574,29 +651,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 15,
   },
-  optLetterText: { color: "#fff", fontWeight: "bold" },
-  optText: { flex: 1 },
+  optLetterText: { color: c.onPrimary, fontWeight: "bold" },
+  optText: { flex: 1, fontSize: 15, lineHeight: 21 },
 
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(15,23,42,0.85)",
+    backgroundColor: c.overlay,
     justifyContent: "flex-end",
   },
   modalOverlayCenter: {
     flex: 1,
-    backgroundColor: "rgba(15,23,42,0.6)",
+    backgroundColor: c.overlay,
     justifyContent: "center",
     padding: 20,
   },
   modalContentFeedback: {
-    backgroundColor: "#fff",
+    backgroundColor: c.card,
     borderRadius: 30,
     padding: 25,
     alignItems: "center",
     maxHeight: "80%",
+    borderWidth: 1,
+    borderColor: c.border,
   },
   modalContentFull: {
-    backgroundColor: "#0F172A",
+    backgroundColor: c.card,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     padding: 20,
@@ -608,9 +687,9 @@ const styles = StyleSheet.create({
   feedbackLabel: { fontSize: 12, fontWeight: "bold", marginTop: 15, marginBottom: 5 },
   feedbackText: { fontSize: 15, lineHeight: 22 },
   nextBtn: { width: "100%", padding: 18, borderRadius: 15, alignItems: "center" },
-  nextBtnText: { color: "#fff", fontWeight: "bold" },
+  nextBtnText: { color: c.onPrimary, fontWeight: "bold" },
 
-  resultContainer: { flex: 1, backgroundColor: "#0F172A" },
+  resultContainer: { flex: 1, backgroundColor: c.bg },
   resultHeader: { padding: 25, paddingTop: 60 },
   tierBadge: {
     alignSelf: "flex-start",
@@ -621,31 +700,31 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tierText: { fontWeight: "bold", fontSize: 13 },
-  resultMainTitle: { fontSize: 24, fontWeight: "bold", color: "#fff", marginBottom: 16 },
+  resultMainTitle: { fontSize: 24, fontWeight: "bold", color: c.text, marginBottom: 16 },
   xpBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#1E293B",
+    backgroundColor: c.warningSoft,
     alignSelf: "flex-start",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#FFD700",
+    borderColor: c.warning,
   },
-  xpText: { color: "#FFD700", fontWeight: "900", fontSize: 16 },
+  xpText: { color: c.warning, fontWeight: "900", fontSize: 16 },
   statsRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
-  statBox: { flex: 1, backgroundColor: "#1E293B", padding: 15, borderRadius: 15, justifyContent: "center" },
-  statLabel: { color: "#94A3B8", fontSize: 12, marginBottom: 5 },
-  statValue: { color: "#fff", fontSize: 22, fontWeight: "bold" },
+  statBox: { flex: 1, backgroundColor: c.card, padding: 15, borderRadius: 15, justifyContent: "center", borderWidth: 1, borderColor: c.border },
+  statLabel: { color: c.textLight, fontSize: 12, marginBottom: 5 },
+  statValue: { color: c.text, fontSize: 22, fontWeight: "bold" },
   miniRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 2 },
-  miniLabel: { color: "#94A3B8", fontSize: 11 },
+  miniLabel: { color: c.textLight, fontSize: 11 },
   miniValue: { fontSize: 11, fontWeight: "bold" },
   progressTrack: {
     height: 8,
-    backgroundColor: "#1E293B",
+    backgroundColor: c.surfaceAlt,
     borderRadius: 4,
     marginBottom: 24,
     overflow: "hidden",
@@ -653,50 +732,54 @@ const styles = StyleSheet.create({
   progressFill: { height: "100%", borderRadius: 4 },
 
   iaAnalysisCard: {
-    backgroundColor: "#1E293B",
+    backgroundColor: c.highlightSoft,
     padding: 20,
     borderRadius: 20,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
+    borderColor: c.highlight,
     marginBottom: 8,
   },
-  iaIconBox: { width: 45, height: 45, borderRadius: 12, justifyContent: "center", alignItems: "center" },
-  iaCardTitle: { fontSize: 14, fontWeight: "bold" },
-  iaCardSub: { color: "#94A3B8", fontSize: 11, marginTop: 4 },
-  iaBtn: { paddingHorizontal: 15, paddingVertical: 10, borderRadius: 10 },
-  iaBtnText: { color: "#fff", fontSize: 12, fontWeight: "bold" },
+  iaIconBox: { width: 45, height: 45, borderRadius: 12, justifyContent: "center", alignItems: "center", backgroundColor: c.highlight },
+  iaCardTitle: { fontSize: 14, fontWeight: "bold", color: c.highlight },
+  iaCardSub: { color: c.textLight, fontSize: 11, marginTop: 4 },
+  iaBtn: { paddingHorizontal: 15, paddingVertical: 10, borderRadius: 10, minHeight: 44, justifyContent: "center", backgroundColor: c.highlight },
+  iaBtnText: { color: c.onPrimary, fontSize: 12, fontWeight: "bold" },
 
-  sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#fff", marginTop: 24, marginBottom: 14 },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", color: c.text, marginTop: 24, marginBottom: 14 },
   studyOptionsRow: { flexDirection: "row", gap: 12, marginBottom: 8 },
   studyCard: {
     flex: 1,
-    backgroundColor: "#1E293B",
+    backgroundColor: c.card,
     padding: 15,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#334155",
+    borderColor: c.border,
   },
   studyIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center", marginBottom: 10 },
-  studyCardTitle: { color: "#fff", fontSize: 13, fontWeight: "bold" },
-  studyCardSub: { color: "#64748B", fontSize: 11, marginTop: 3 },
+  studyCardTitle: { color: c.text, fontSize: 13, fontWeight: "bold" },
+  studyCardSub: { color: c.textLight, fontSize: 11, marginTop: 3 },
 
   reviewSection: { marginTop: 20 },
-  reviewTitle: { color: "#94A3B8", fontSize: 13, fontWeight: "bold", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 },
+  reviewTitle: { color: c.textLight, fontSize: 13, fontWeight: "bold", marginBottom: 12, textTransform: "uppercase", letterSpacing: 1 },
   reviewItem: {
-    backgroundColor: "#1E293B",
+    backgroundColor: c.card,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
     borderLeftWidth: 4,
+    borderWidth: 1,
+    borderColor: c.border,
   },
   reviewHeaderRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 },
-  materiaTag: { backgroundColor: "#334155", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  materiaTagText: { color: "#94A3B8", fontSize: 11 },
-  reviewQ: { color: "#CBD5E1", fontSize: 13, lineHeight: 18 },
+  reviewStatus: { fontSize: 12, fontWeight: "bold" },
+  materiaTag: { backgroundColor: c.surfaceAlt, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  materiaTagText: { color: c.textLight, fontSize: 11 },
+  reviewQ: { color: c.text, fontSize: 13, lineHeight: 18 },
   reviewAnswers: { flexDirection: "row", gap: 16, marginTop: 10 },
-  reviewWrong: { color: "#EF4444", fontSize: 12, fontWeight: "bold" },
-  reviewCorrect: { color: "#10B981", fontSize: 12, fontWeight: "bold" },
+  reviewWrong: { color: c.danger, fontSize: 12, fontWeight: "bold" },
+  reviewCorrect: { color: c.success, fontSize: 12, fontWeight: "bold" },
 
   refazerBtn: {
     flexDirection: "row",
@@ -704,16 +787,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     marginTop: 8,
-    backgroundColor: "#1E293B",
+    backgroundColor: c.card,
     padding: 16,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: "#F59E0B",
+    borderColor: c.warning,
   },
-  refazerBtnText: { color: "#F59E0B", fontWeight: "bold", fontSize: 14 },
+  refazerBtnText: { color: c.warning, fontWeight: "bold", fontSize: 14 },
   finalBackBtn: {
     marginTop: 30,
-    backgroundColor: "#334155",
+    backgroundColor: c.primary,
     padding: 18,
     borderRadius: 15,
     flexDirection: "row",
@@ -721,7 +804,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
   },
-  finalBackBtnText: { color: "#fff", fontWeight: "bold" },
+  finalBackBtnText: { color: c.onPrimary, fontWeight: "bold" },
 
   iaModalHeader: {
     flexDirection: "row",
@@ -729,18 +812,18 @@ const styles = StyleSheet.create({
     width: "100%",
     paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "#1E293B",
+    borderBottomColor: c.border,
     marginBottom: 15,
   },
-  iaModalTitle: { fontSize: 18, fontWeight: "bold", color: "#fff", marginLeft: 10, flex: 1 },
-  closeHeaderBtn: { padding: 5 },
+  iaModalTitle: { fontSize: 18, fontWeight: "bold", color: c.text, marginLeft: 10, flex: 1 },
+  closeHeaderBtn: { width: 44, height: 44, justifyContent: "center", alignItems: "center" },
   closeIAbnt: {
-    backgroundColor: "#4F46E5",
+    backgroundColor: c.highlight,
     width: "100%",
     padding: 16,
     borderRadius: 15,
     alignItems: "center",
     marginTop: 15,
   },
-  closeIAbntText: { color: "#fff", fontWeight: "bold", fontSize: 15 },
+  closeIAbntText: { color: c.onPrimary, fontWeight: "bold", fontSize: 15 },
 });

@@ -8,23 +8,23 @@ import {
   Image,
   ScrollView,
   StyleSheet,
-  Switch,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Text } from "../../components/AppText";
 import { authService } from "../../src/services/auth";
 import { useAuth } from "../../src/context/AuthContext";
 import { useNavigationLoading } from "../../src/context/NavigationLoadingContext";
-import { useTheme } from "../../src/context/ThemeContext";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import { useTheme, useThemedStyles, type ThemeColors } from "../../src/context/ThemeContext";
 import { supabase } from "../../src/services/supabase";
 import { appAlert } from "../../src/services/appAlert";
 import { friendlyError } from "../../src/utils/friendlyError";
 
 export default function PerfilAluno() {
   const { pageReady } = useNavigationLoading();
-  const { colors, isDark, toggleTheme } = useTheme();
+  const { colors, theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { setUsuario } = useAuth();
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -154,7 +154,7 @@ export default function PerfilAluno() {
 
   if (loading) {
     return (
-      <View style={[styles.center, { flex: 1, backgroundColor: colors.bg }]}>
+      <View style={[styles.center, { flex: 1 }]}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -163,20 +163,9 @@ export default function PerfilAluno() {
   const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/png?seed=${userData?.usuario || "Estudante"}`;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      {/* HEADER */}
-      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar"
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Meu Perfil</Text>
-        <View style={{ width: 24 }} />
-      </View>
+    <View style={styles.container}>
+      {/* Raiz de aba: sem "voltar", a navegação é pela barra de abas */}
+      <ScreenHeader title="Meu Perfil" showBack={false} />
 
       <ScrollView
         style={styles.scroll}
@@ -193,13 +182,14 @@ export default function PerfilAluno() {
         >
           <Image
             source={{ uri: userData?.avatar_url || defaultAvatar }}
-            style={[styles.avatar, { borderColor: colors.card }]}
+            style={styles.avatar}
+            accessibilityIgnoresInvertColors
           />
-          <View style={[styles.editBadge, { backgroundColor: colors.primary }]}>
+          <View style={styles.editBadge}>
             {uploading ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={colors.onPrimary} />
             ) : (
-              <Ionicons name="camera" size={16} color="#fff" />
+              <Ionicons name="camera" size={16} color={colors.onPrimary} />
             )}
           </View>
         </TouchableOpacity>
@@ -215,7 +205,7 @@ export default function PerfilAluno() {
       {/* CARD DE PONTUAÇÃO, RANKING E STREAK */}
       <View style={[styles.statsContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.statBox}>
-          <Ionicons name="flash" size={24} color="#FFD700" />
+          <Ionicons name="flash" size={24} color={colors.warning} />
           <Text style={[styles.statNumber, { color: colors.text }]}>
             {userData?.pontuacao || 0}
           </Text>
@@ -244,25 +234,28 @@ export default function PerfilAluno() {
           </Text>
         </View>
 
-        {/* TOGGLE TEMA ESCURO */}
-        <View style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}>
-          <Ionicons
-            name={isDark ? "moon" : "moon-outline"}
-            size={20}
-            color={colors.textLight}
-          />
-          <Text style={[styles.menuItemText, { color: colors.text }]}>Tema escuro</Text>
-          <Switch
-            value={isDark}
-            onValueChange={toggleTheme}
-            trackColor={{ false: colors.border, true: colors.primary }}
-            thumbColor="#fff"
-          />
-        </View>
+        <TouchableOpacity
+          style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}
+          onPress={() => router.push("/configuracoes" as any)}
+          accessibilityRole="button"
+          accessibilityHint={`Tema atual: ${theme.nome}`}
+        >
+          <Ionicons name="accessibility-outline" size={20} color={colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.menuItemText, { color: colors.text, fontWeight: "bold" }]}>
+              Aparência e acessibilidade
+            </Text>
+            <Text style={[styles.menuItemSub, { color: colors.textLight }]}>
+              Tema {theme.nome.toLowerCase()} · tamanho do texto · leitura
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textLight} />
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}
-          onPress={() => router.push("/(tabs)/ranking")}
+          onPress={() => router.navigate("/(tabs)/ranking")}
+          accessibilityRole="button"
         >
           <Ionicons name="podium-outline" size={20} color={colors.primary} />
           <Text style={[styles.menuItemText, { color: colors.primary, fontWeight: "bold" }]}>
@@ -273,9 +266,10 @@ export default function PerfilAluno() {
 
         <TouchableOpacity
           style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}
-          onPress={() => router.push("/(tabs)/historico")}
+          onPress={() => router.push("/historico")}
+          accessibilityRole="button"
         >
-          <Ionicons name="time-outline" size={20} color="#F59E0B" />
+          <Ionicons name="time-outline" size={20} color={colors.warning} />
           <Text style={[styles.menuItemText, { color: colors.text, fontWeight: "bold" }]}>
             Histórico de Simulados
           </Text>
@@ -285,6 +279,7 @@ export default function PerfilAluno() {
         <TouchableOpacity
           style={[styles.menuItem, { backgroundColor: colors.card, borderColor: colors.border, marginTop: 10 }]}
           onPress={() => router.push("/ajuda" as any)}
+          accessibilityRole="button"
         >
           <Ionicons name="help-circle-outline" size={20} color={colors.textLight} />
           <Text style={[styles.menuItemText, { color: colors.text, fontWeight: "bold" }]}>
@@ -302,26 +297,16 @@ export default function PerfilAluno() {
         accessibilityRole="button"
         accessibilityLabel="Sair da conta"
       >
-        <Ionicons name="log-out-outline" size={20} color="red" />
+        <Ionicons name="log-out-outline" size={20} color={colors.danger} />
         <Text style={styles.logoutText}>Sair da Conta</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
+const createStyles = (c: ThemeColors) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.bg },
   center: { justifyContent: "center", alignItems: "center" },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-  },
-  backBtn: { padding: 4 },
-  headerTitle: { fontSize: 18, fontWeight: "bold" },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 20 },
   avatarSection: { alignItems: "center", marginTop: 30 },
@@ -330,7 +315,8 @@ const styles = StyleSheet.create({
     height: 110,
     borderRadius: 55,
     borderWidth: 3,
-    backgroundColor: "#E2E8F0",
+    borderColor: c.card,
+    backgroundColor: c.surfaceAlt,
   },
   editBadge: {
     position: "absolute",
@@ -342,7 +328,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
-    borderColor: "#fff",
+    borderColor: c.card,
+    backgroundColor: c.primary,
   },
   nameText: { fontSize: 22, fontWeight: "bold", marginTop: 15 },
   subText: { fontSize: 14, marginTop: 4 },
@@ -369,6 +356,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   menuItemText: { flex: 1, fontSize: 15 },
+  menuItemSub: { fontSize: 12, marginTop: 2 },
   logoutBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -379,9 +367,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 25,
     padding: 16,
     borderRadius: 16,
-    backgroundColor: "#FFF5F5",
+    backgroundColor: c.dangerSoft,
     borderWidth: 1,
-    borderColor: "#FFE2E2",
+    borderColor: c.danger,
   },
-  logoutText: { color: "red", fontSize: 15, fontWeight: "bold" },
+  logoutText: { color: c.danger, fontSize: 15, fontWeight: "bold" },
 });
